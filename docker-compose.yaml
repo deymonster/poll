@@ -1,0 +1,43 @@
+version: "3.8"
+
+services:
+  pool-db:
+    image: postgres:14-alpine
+    container_name: pool-db
+    restart: always
+    ports:
+      - "5432:5432"
+    volumes:
+      - poll-db-data:/var/lib/postgresql/data/pgdata
+    env_file:
+      - .env
+    environment:
+      PGDATA: /var/lib/postgresql/data/pgdata
+
+  pool-app:
+    build:
+      context: .
+      dockerfile: _configs/Dockerfile
+    container_name: pool-app
+    command: uvicorn main:app --host 0.0.0.0 --port 5000 --reload
+    env_file:
+      - .env
+    environment:
+      WAIT-HOSTS: pool-db
+    volumes:
+      - ./src:/home/pool_users/app
+    ports:
+      - "5000:5000"
+    tty: true
+    restart: on-failure
+    depends_on:
+      - pool-db
+
+
+volumes:
+  poll-db-data:
+
+
+networks:
+  pool-network:
+    external: false

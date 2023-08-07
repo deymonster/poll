@@ -191,11 +191,11 @@ class MultipleChoiceResponse(BaseModel):
 
 
 class SingleTextResponse(BaseModel):
-    answer_text: constr(max_length=500, regex=r'^[а-яА-ЯёЁa-zA-Z0-9\s]+$')
+    answer_text: constr(max_length=500, pattern=r'^[а-яА-ЯёЁa-zA-Z0-9\s]+$')
 
 
 class MultipleTextResponse(BaseModel):
-    answer_text: List[constr(max_length=500, regex=r'^[а-яА-ЯёЁa-zA-Z0-9\s]+$')]
+    answer_text: List[constr(max_length=500, pattern=r'^[а-яА-ЯёЁa-zA-Z0-9\s]+$')]
 
 
 class CreateSingleResponse(BaseModel):

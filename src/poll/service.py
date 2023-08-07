@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, joinedload
 from core.local_config import settings
 from . import models, schemas
 from typing import List
-from src.base.service import CRUDBase
+from base.service import CRUDBase
 from mimetypes import guess_type
 
 from uuid import UUID

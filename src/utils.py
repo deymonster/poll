@@ -10,11 +10,7 @@ from jwt.exceptions import InvalidTokenError
 
 from core import config
 
-
-
 password_reset_jwt_subject = "present"
-
-
 
 
 def send_email(email_to: str, subject_template="", html_template="", enviroment={}):
@@ -115,4 +111,3 @@ def verify_password_reset_token(token: str) -> Optional[str]:
         return decoded_token
     except InvalidTokenError:
         return None
-

@@ -2,11 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic.networks import EmailStr
 from starlette.status import HTTP_403_FORBIDDEN
 
-from src.api.utils.security import get_current_active_superuser
-from src.base.schemas import Msg
-from src.user.schemas import User
-from src.user.models import User as DBUser
-from src.utils import send_test_email
+from api.utils.security import get_current_active_superuser
+from base.schemas import Msg
+from user.schemas import User
+from user.models import User as DBUser
+from utils import send_test_email
 
 
 router = APIRouter()

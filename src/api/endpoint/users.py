@@ -2,17 +2,18 @@ from typing import List
 
 from fastapi import APIRouter, Depends, Body, HTTPException
 from fastapi.encoders import jsonable_encoder
-from pydantic.networks import EmailStr
+from pydantic import EmailStr
+
 from sqlalchemy.orm import Session
 
 from core import config
-from src.utils import send_new_account_email
-from src.api.utils.db import get_db
-from src.api.utils.security import get_current_active_superuser, get_current_active_user
+from utils import send_new_account_email
+from api.utils.db import get_db
+from api.utils.security import get_current_active_superuser, get_current_active_user
 
-from src.user.models import User as DBUser
-from src.user.schemas import User, UserCreate, UserUpdate
-from src.user.service import crud_user
+from user.models import User as DBUser
+from user.schemas import User, UserCreate, UserUpdate
+from user.service import crud_user
 
 router = APIRouter()
 

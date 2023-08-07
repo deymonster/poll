@@ -1,10 +1,10 @@
 from typing import Optional
 from sqlalchemy.orm import Session
 
-from src.user.models import User
-from src.user.schemas import UserCreate, UserUpdate
+from base.service import CRUDBase
 from core.security import verify_password, get_password_hash
-from src.base.service import CRUDBase
+from user.models import User
+from user.schemas import UserCreate, UserUpdate
 
 
 class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):

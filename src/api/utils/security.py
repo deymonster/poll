@@ -11,12 +11,12 @@ from starlette.status import HTTP_403_FORBIDDEN, HTTP_302_FOUND, HTTP_401_UNAUTH
     HTTP_500_INTERNAL_SERVER_ERROR
 
 from db.session import SessionLocal
-from src.user.service import crud_user
-from src.api.utils.db import get_db
+from user.service import crud_user
+from api.utils.db import get_db
 from core import config
 from core.jwt import ALGORITHM
-from src.user.models import User
-from src.base.schemas import TokenPayload
+from user.models import User
+from base.schemas import TokenPayload
 from datetime import datetime, timedelta
 from core.jwt import create_access_token, create_refresh_token, ALGORITHM
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, OAuth2

@@ -3,7 +3,7 @@ from enum import Enum
 from sqlalchemy.dialects.postgresql import ENUM, UUID
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, DateTime, JSON
 from sqlalchemy.orm import relationship
-from src.user.models import User
+from user.models import User
 from datetime import datetime
 import uuid
 

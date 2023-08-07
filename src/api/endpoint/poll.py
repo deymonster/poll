@@ -4,13 +4,13 @@ from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 from starlette.responses import RedirectResponse, JSONResponse
 
-from src.poll.schemas import QuestionPage, Question
-from src.api.utils.security import get_current_user, get_current_active_user
-from src.api.utils.db import get_db
-from src.poll import schemas, service
-from src.poll.service import crud_poll
-from src.user.models import User
-from src.user.schemas import UserBase
+from poll.schemas import QuestionPage, Question
+from api.utils.security import get_current_user, get_current_active_user
+from api.utils.db import get_db
+from poll import schemas, service
+from poll.service import crud_poll
+from user.models import User
+from user.schemas import UserBase
 
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -19,16 +19,15 @@ import locale
 
 from uuid import UUID
 
-
-
 router = APIRouter()
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
 # templates_dir = os.path.join(current_dir, '..', '..', 'templates')
 templates = Jinja2Templates(directory='templates')
 
-locale.setlocale(locale.LC_TIME, 'ru_RU.UTF-8')
-month_names = [locale.nl_langinfo(locale.MON_1 + i) for i in range(12)]
+
+# locale.setlocale(locale.LC_TIME, 'ru_RU.UTF-8')
+# month_names = [locale.nl_langinfo(locale.MON_1 + i) for i in range(12)]
 
 @router.post("/create2", response_model=schemas.Poll)
 def create_poll2(
@@ -48,6 +47,7 @@ def create_poll2(
     crud_poll.create_new_poll(db=db, poll=poll_in, user_id=user.id)
     return []
 
+
 # POLL
 
 # # Получение списка опросов
@@ -56,14 +56,10 @@ def create_poll2(
 #     return service.get_all_user_poll(db=db, user_id=user.id)
 
 
-
-
-
 # Получение опроса со списками ответов
 @router.get("/polls/{poll_id}/responses/", response_model=List[schemas.ListResponses])
 def get_poll_responses(poll_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_active_user)):
     return service.get_single_poll_with_response(db=db, poll_id=poll_id, user_id=user.id)
-
 
 
 # endpoint for create new poll with  questions and nested choices
@@ -79,6 +75,7 @@ def create_poll(request: Request, poll: schemas.CreateSimplePoll, db: Session = 
     service.create_new_simple_poll(db=db, poll=poll, user_id=user_id)
     return
 
+
 # endpoint for adding in database new poll with createsimplepoll using data from form and return all user polls
 @router.post("/create_from_form/")
 async def create_poll(request: Request, db: Session = Depends(get_db)):
@@ -88,15 +85,17 @@ async def create_poll(request: Request, db: Session = Depends(get_db)):
     service.create_new_simple_poll(db=db, poll=poll, user_id=user_id)
     polls = service.get_all_user_poll(db=db, user_id=user_id)
     return templates.TemplateResponse("partials/poll_list.html", {"request": request,
-                                                                  "month_names": month_names,
+                                                                  # "month_names": month_names,
                                                                   "polls": polls})
 
 
 # endpoint for adding new poll user for vue frontend
 @router.post("/user_polls", tags=["poll_vue"], response_model=schemas.Poll)
-def create_poll(request: schemas.CreateSimplePoll, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+def create_poll(request: schemas.CreateSimplePoll, db: Session = Depends(get_db),
+                user: User = Depends(get_current_user)):
     poll = service.create_new_simple_poll(db=db, poll=request, user_id=user.id)
     return poll
+
 
 #
 #
@@ -206,29 +205,28 @@ def create_poll(request: schemas.CreateSimplePoll, db: Session = Depends(get_db)
 
 
 # endpoint for login page
-@router.get("/login")
-def login(request: Request):
-    access_token, refresh_token = get_token_from_cookie(request)
-    if access_token is not None and refresh_token is not None:
-        response = RedirectResponse(url='/user_polls', status_code=303)
-        response.headers['Cache-Control'] = 'no-cache, must-revalidate'
-        return response
-    return templates.TemplateResponse("login.html", {"request": request})
-
-
-# endpoint for login page v3
-@router.get("/loginv3")
-def login(request: Request):
-    access_token, refresh_token = get_token_from_cookie(request)
-    print(f'Token from loginv3: {access_token}')
-    if access_token is not None and refresh_token is not None:
-        # response = RedirectResponse(url='/polls', status_code=303)
-        response = templates.TemplateResponse("polls.html", {"request": request})
-        response.headers['Cache-Control'] = 'no-cache, must-revalidate'
-        return response
-    return templates.TemplateResponse("login-v3.html", {"request": request})
-
-
+# @router.get("/login")
+# def login(request: Request):
+#     access_token, refresh_token = get_token_from_cookie(request)
+#     if access_token is not None and refresh_token is not None:
+#         response = RedirectResponse(url='/user_polls', status_code=303)
+#         response.headers['Cache-Control'] = 'no-cache, must-revalidate'
+#         return response
+#     return templates.TemplateResponse("login.html", {"request": request})
+#
+#
+# # endpoint for login page v3
+# @router.get("/loginv3")
+# def login(request: Request):
+#     access_token, refresh_token = get_token_from_cookie(request)
+#     print(f'Token from loginv3: {access_token}')
+#     if access_token is not None and refresh_token is not None:
+#         # response = RedirectResponse(url='/polls', status_code=303)
+#         response = templates.TemplateResponse("polls.html", {"request": request})
+#         response.headers['Cache-Control'] = 'no-cache, must-revalidate'
+#         return response
+#     return templates.TemplateResponse("login-v3.html", {"request": request})
+#
 
 
 # endpoint for home page
@@ -270,11 +268,10 @@ def get_poll(request: Request, poll_id: int, db: Session = Depends(get_db), user
     return poll
 
 
-
 #  endpoint for paginated user polls
 @router.get("/polls")
 def polls(request: Request,
-          page: int =1,
+          page: int = 1,
           page_size: int = 20,
           db: Session = Depends(get_db),
           user: User = Depends(get_current_user)):
@@ -283,7 +280,6 @@ def polls(request: Request,
     """
     user_id = user.id
 
-
     sort_by_options = {
         'created_at_asc': 'По возрастнию даты',
         'created_at_desc': 'По убыванию даты',
@@ -291,12 +287,13 @@ def polls(request: Request,
     }
     sort_by = request.query_params.get('sort_by', 'created_at_desc')
     sort_by_label = sort_by_options.get(sort_by, 'Date Descending')
-    polls, total_polls = service.get_user_poll_paginated(db=db, user_id=user_id, sort_by=sort_by, page=page, page_size=page_size)
+    polls, total_polls = service.get_user_poll_paginated(db=db, user_id=user_id, sort_by=sort_by, page=page,
+                                                         page_size=page_size)
 
     return templates.TemplateResponse("polls.html",
                                       {"request": request,
                                        "polls": polls,
-                                       "month_names": month_names,
+                                       # "month_names": month_names,
                                        "total_polls": total_polls,
                                        "page": page,
                                        "page_size": page_size,
@@ -307,11 +304,11 @@ def polls(request: Request,
 # endpoint for searching polls
 @router.get("/polls/search")
 def search_polls(request: Request,
-                    query: str = Query(..., desription="Search query"),
-                    page: int = Query(1, description="Page number"),
-                    page_size: int = Query(20, description="Page size"),
-                    sort_by: str = Query('created_at_desc', description="Sort by"),
-                    db: Session = Depends(get_db)):
+                 query: str = Query(..., desription="Search query"),
+                 page: int = Query(1, description="Page number"),
+                 page_size: int = Query(20, description="Page size"),
+                 sort_by: str = Query('created_at_desc', description="Sort by"),
+                 db: Session = Depends(get_db)):
     """Endpoint for searching polls"""
     user_id = request.state.user.id
     polls, total_polls = service.get_user_poll_paginated(db=db,
@@ -322,11 +319,11 @@ def search_polls(request: Request,
                                                          query=query
                                                          )
     return templates.TemplateResponse("partials/poll_list.html",
-                                        {"request": request,
-                                         "month_names": month_names,
-                                         "polls": polls,
-                                         "total_polls": total_polls,}
-                                        )
+                                      {"request": request,
+                                       # "month_names": month_names,
+                                       "polls": polls,
+                                       "total_polls": total_polls, }
+                                      )
 
 
 # ednpoint for updating poll
@@ -346,8 +343,6 @@ def update_poll(poll_id: int,
         raise HTTPException(status_code=500, detail="Erors while updating poll")
 
 
-
-
 # endpoint for delete user poll by id and return polls list
 @router.delete("/polls/{poll_id}")
 def delete_poll(request: Request, poll_id: int, db: Session = Depends(get_db)):
@@ -358,14 +353,14 @@ def delete_poll(request: Request, poll_id: int, db: Session = Depends(get_db)):
     print(sort_by)
     service.delete_poll_by_user(db=db, poll_id=poll_id, user_id=request.state.user.id)
     polls, total_polls = service.get_user_poll_paginated(db=db,
-                                            user_id=request.state.user.id,
-                                            sort_by=sort_by)
+                                                         user_id=request.state.user.id,
+                                                         sort_by=sort_by)
     return templates.TemplateResponse("partials/poll_list.html",
-                                        {"request": request,
-                                         "month_names": month_names,
-                                         "polls": polls,
-                                         "total_polls": total_polls,}
-                                        )
+                                      {"request": request,
+                                       # "month_names": month_names,
+                                       "polls": polls,
+                                       "total_polls": total_polls, }
+                                      )
 
 
 # endpoint for uploading image
@@ -376,7 +371,6 @@ async def upload_image(request: Request, poll_id: int, db: Session = Depends(get
     """
     file_name = service.upload_poll_cover(db, file=image, poll_id=poll_id, user_id=request.state.user.id)
     return {"file_name": file_name}
-
 
 
 # endpoint for displaying all polls
@@ -396,7 +390,7 @@ def add_question_to_poll(poll_uuid: UUID, question: schemas.QuestionCreate,
     """
     Add question to poll endpoint
     """
-    #import pdb; pdb.set_trace()
+    # import pdb; pdb.set_trace()
     question = service.create_poll_question(db=db, question=question, poll_uuid=poll_uuid)
     return question
 
@@ -409,7 +403,7 @@ def get_poll_questions_paginated(poll_uuid: UUID, page: int = 1, db: Session = D
     """
     print(f'Poll uuid: {poll_uuid}')
     questions, total_questions = service.get_poll_questions_paginated(db=db, poll_uuid=poll_uuid, page=page)
-    #import pdb; pdb.set_trace()
+    # import pdb; pdb.set_trace()
     return {"total_questions": total_questions, "questions": questions}
 
 
@@ -421,5 +415,3 @@ def add_choice_to_question(question_id: int, choice: schemas.ChoiceCreate, db: S
     """
     choice = service.create_question_choice(db=db, choice=choice, question_id=question_id)
     return choice
-
-

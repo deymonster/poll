@@ -13,13 +13,13 @@ from core import config
 from core.jwt import create_access_token, create_refresh_token, ALGORITHM
 from core.security import get_password_hash
 
-from src.api.utils.db import get_db
-from src.api.utils.security import get_current_user
-from src.base.schemas import Msg, Token, TokenPayload
-from src.user.models import User as DBUser
-from src.user.schemas import User
-from src.user.service import crud_user
-from src.utils import (generate_password_reset_token,
+from api.utils.db import get_db
+from api.utils.security import get_current_user
+from base.schemas import Msg, Token, TokenPayload
+from user.models import User as DBUser
+from user.schemas import User
+from user.service import crud_user
+from utils import (generate_password_reset_token,
                        send_reset_password_email, verify_password_reset_token)
 from starlette.responses import Response, RedirectResponse, JSONResponse
 from fastapi.responses import HTMLResponse
