@@ -90,7 +90,7 @@ async def create_poll(request: Request, db: Session = Depends(get_db)):
 
 
 # endpoint for adding new poll user for vue frontend
-@router.post("/user_polls", tags=["poll_vue"], response_model=schemas.Poll)
+@router.post("/user_polls",  response_model=schemas.Poll)
 def create_poll(request: schemas.CreateSimplePoll, db: Session = Depends(get_db),
                 user: User = Depends(get_current_user)):
     poll = service.create_new_simple_poll(db=db, poll=request, user_id=user.id)
@@ -250,7 +250,7 @@ def test(request: Request):
 
 
 # endpoint to get all user polls for vue
-@router.get("/user_polls", tags=["poll_vue"])
+@router.get("/user_polls")
 def user_polls(request: Request, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     """
     Polls page endpoint

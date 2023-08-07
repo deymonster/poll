@@ -20,7 +20,7 @@ from user.models import User as DBUser
 from user.schemas import User
 from user.service import crud_user
 from utils import (generate_password_reset_token,
-                       send_reset_password_email, verify_password_reset_token)
+                   send_reset_password_email, verify_password_reset_token)
 from starlette.responses import Response, RedirectResponse, JSONResponse
 from fastapi.responses import HTMLResponse
 
@@ -28,8 +28,9 @@ router = APIRouter()
 
 
 # endpoint to login with  vue js
-@router.post("/login/access-token-vue", tags=["login_vue"])
-def login_access_token_vue(request: Request, response: Response, db: Session = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()):
+@router.post("/login",summary="Авторизация", description="Авторизация пользователя в системе")
+def login_access_token_vue(request: Request, response: Response, db: Session = Depends(get_db),
+                           form_data: OAuth2PasswordRequestForm = Depends()):
     user = crud_user.authenticate(
         db, email=form_data.username, password=form_data.password
     )
@@ -58,8 +59,8 @@ def login_access_token_vue(request: Request, response: Response, db: Session = D
     }
 
 
-#endpoint for refresh token for vue js
-@router.post("/login/refresh-token-vue", tags=["login_vue"])
+# endpoint for refresh token for vue js
+@router.post("/refresh")
 def login_refresh_token_vue(refresh_token: str, db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -87,8 +88,7 @@ def login_refresh_token_vue(refresh_token: str, db: Session = Depends(get_db)):
     return {"access_token": access_token}
 
 
-
-@router.post("/login/access-token", tags=["login"])
+@router.post("/access-token", deprecated=True)
 def login_access_token(response: Response,
                        db: Session = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()):
     """
@@ -184,8 +184,7 @@ def login_access_token(response: Response,
 #     return response
 
 
-
-@router.post("/login/test-token", response_model=User, tags=["login"])
+@router.post("/test_access_token", response_model=User, deprecated=True)
 def test_token(current_user: DBUser = Depends(get_current_user)):
     """
     Test access token
@@ -193,7 +192,7 @@ def test_token(current_user: DBUser = Depends(get_current_user)):
     return current_user
 
 
-@router.post("/password-recovery/{email}", response_model=Msg, tags=["login"])
+@router.post("/password-recovery/{email}", response_model=Msg)
 def recover_password(email: str, db: Session = Depends(get_db)):
     """
     Password Recovery
@@ -211,7 +210,7 @@ def recover_password(email: str, db: Session = Depends(get_db)):
     return {"msg": "Password recovery email sent"}
 
 
-@router.post("/reset-password/", response_model=Msg, tags=["login"])
+@router.post("/reset-password/", response_model=Msg)
 def reset_password(token: str = Body(...), new_password: str = Body(...), db: Session = Depends(get_db)):
     """
     Reset password

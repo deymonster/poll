@@ -46,7 +46,7 @@ async def db_session_middleware(request: Request, call_next):
     return response
 
 
-app.include_router(routers.api_router)
+app.include_router(routers.api_router, prefix="/api")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=5000)
