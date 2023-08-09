@@ -1,4 +1,3 @@
-import json
 from datetime import timedelta
 
 import jwt
@@ -7,7 +6,6 @@ from fastapi import APIRouter, Body, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from starlette import status
-from starlette.requests import Request
 
 from core import config
 from core.jwt import create_access_token, create_refresh_token, ALGORITHM
@@ -15,7 +13,7 @@ from core.security import get_password_hash
 
 from api.utils.db import get_db
 from api.utils.security import get_current_user
-from base.schemas import Msg, Token, TokenPayload
+from base.schemas import Msg, Token, TokenPayload, RefreshToken, RefreshTokenPayload
 from user.models import User as DBUser
 from user.schemas import User
 from user.service import crud_user
@@ -28,9 +26,25 @@ router = APIRouter()
 
 
 # endpoint to login with  vue js
-@router.post("/login",summary="Авторизация", description="Авторизация пользователя в системе")
-def login_access_token_vue(request: Request, response: Response, db: Session = Depends(get_db),
+@router.post("/login", summary="Авторизация", description="Авторизация пользователя в системе")
+def login_access_token_vue(response: Response, db: Session = Depends(get_db),
                            form_data: OAuth2PasswordRequestForm = Depends()):
+    """ Эндпоинт для авторизации пользователя в системе.
+
+    :param response: Ответ сервера для установки куки
+    :param db: Сессия базы данных
+    :param form_data: Зависимость от класса OAuth2PasswordRequestForm для получения данных из формы
+    :return: Возвращает сообщение об успешной авторизации,  токен доступа и токен обновления
+
+    1. Проверяем существует ли пользователь с таким email
+    2. Проверяем активен ли пользователь
+    3. Генерируем токен доступа с учетом ролей пользователя и устанавливаем время жизни токена
+    4. Генерируем токен обновления и устанавливаем время жизни токена
+    5. Устанавливаем токены в куки для дальнейшего использования в запросах
+    6. Возвращаем сообщение об успешной авторизации,  токен доступа и токен обновления
+    """
+
+
     user = crud_user.authenticate(
         db, email=form_data.username, password=form_data.password
     )
@@ -39,19 +53,19 @@ def login_access_token_vue(request: Request, response: Response, db: Session = D
     elif not crud_user.is_active(user):
         raise HTTPException(status_code=400, detail="Inactive user")
 
-    # generate access token
     access_token_expires = timedelta(minutes=config.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": user.email, "roles": user.roles}, user_id=user.id, expire_delta=access_token_expires
     )
-    # generate refresh token
+
     refresh_token_expires = timedelta(minutes=config.REFRESH_TOKEN_EXPIRE_MINUTES)
     refresh_token = create_refresh_token(
         data={"sub": user.email}, user_id=user.id, expire_delta=refresh_token_expires
     )
-    # set tokens in cookies
+
     response.set_cookie(key="Authorization", value=f"Bearer {access_token}", httponly=True)
     response.set_cookie(key="Authorization_refresh", value=f"Bearer {refresh_token}", httponly=True)
+
     return {
         "message": "Login successfull",
         "access_token": access_token,
@@ -60,19 +74,43 @@ def login_access_token_vue(request: Request, response: Response, db: Session = D
 
 
 # endpoint for refresh token for vue js
-@router.post("/refresh")
-def login_refresh_token_vue(refresh_token: str, db: Session = Depends(get_db)):
+@router.post("/refresh", summary="Обновление токена", description="Обновление токена доступа")
+def login_refresh_token_vue(token_data: RefreshToken, db: Session = Depends(get_db)):
+    """" Эндпоинт для обновления токена доступа.
+    :param token_data: Зависимость от класса RefreshToken для получения данных из тела запроса
+    :param db: Сессия базы данных
+    :return: Возвращает токен доступа и токен обновления
+
+    1. Проверяем токен обновления на валидность с использованием секретного ключа
+    2. Извлекаем индефикатор пользователя из токена обновления и врея жизни токена
+    3. Проверяем наличие пользователя в базе данных и его активный статус
+    4. Генерируем новый токен доступа и токен обновления
+    5. Возвращаем токен доступа и токен обновления в JSON формате
+
+    Пример запроса:
+    POST /api/refresh
+    Content-Type: application/json
+    {
+        "refresh_token": "your refresh token"
+    }
+    Пример ответа:
+    {
+        "access_token": "your access token"
+    }
+    """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"}
     )
     try:
+        refresh_token = token_data.refresh_token
         payload = jwt.decode(refresh_token, config.SECRET_KEY, algorithms=[ALGORITHM])
+        print(f"Token payload: {payload}")
         user_id: str = payload.get("user_id")
         if user_id is None:
             raise credentials_exception
-        token_data = TokenPayload(user_id=user_id)
+        token_data = RefreshTokenPayload(user_id=user_id, exp=payload.get("exp"))
     except (jwt.ExpiredSignatureError, jwt.InvalidTokenError, jwt.ImmatureSignatureError):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token expired or invalid")
     except PyJWTError:
@@ -137,53 +175,6 @@ def login_access_token(response: Response,
     return response
 
 
-# @router.post("/token/refresh/")
-# def refresh_token(response: Response, db: Session = Depends(get_db), refresh_token: str = Depends(reusable_oauth2)):
-#     credentials_exception = HTTPException(
-#         status_code=status.HTTP_401_UNAUTHORIZED,
-#         detail="Could not validate credentials",
-#         headers={"WWW-Authenticate": "Bearer"}
-#     )
-#     try:
-#         payload = jwt.decode(refresh_token, config.SECRET_KEY, algorithms=ALGORITHM)
-#         user_id: str = payload.get("user_id")
-#         if user_id is None:
-#             raise credentials_exception
-#         token_data = TokenPayload(user_id=user_id)
-#     except PyJWTError:
-#         raise credentials_exception
-#     user = crud_user.get(db, id=token_data.user_id)
-#     if user is None:
-#         raise credentials_exception
-#     refresh_token_expires = timedelta(minutes=config.REFRESH_TOKEN_EXPIRE_MINUTES)
-#     new_refresh_token = create_refresh_token(
-#         data={"sub": user.email}, user_id=user_id, expire_delta=refresh_token_expires
-#     )
-#     acces_token_expires = timedelta(minutes=config.ACCESS_TOKEN_EXPIRE_MINUTES)
-#     new_access_token = create_access_token(
-#         data={"sub": user.email}, user_id=user_id, expire_delta=acces_token_expires
-#     )
-#     response.set_cookie(
-#         key="access_token",
-#         value=f"Bearer {new_access_token}",
-#         httponly=True,
-#         domain="127.0.0.1",
-#         # secure=True,
-#         # path="/",
-#         samesite="Strict"
-#     )
-#     response.set_cookie(
-#         key="refresh_token",
-#         value=f"Bearer {new_refresh_token}",
-#         httponly=True,
-#         domain="127.0.0.1",
-#         # secure=True,
-#         # path="/",
-#         samesite="Strict"
-#     )
-#     return response
-
-
 @router.post("/test_access_token", response_model=User, deprecated=True)
 def test_token(current_user: DBUser = Depends(get_current_user)):
     """
@@ -195,7 +186,14 @@ def test_token(current_user: DBUser = Depends(get_current_user)):
 @router.post("/password-recovery/{email}", response_model=Msg)
 def recover_password(email: str, db: Session = Depends(get_db)):
     """
-    Password Recovery
+    Эндпойнт для сброса пароля.
+    :param email: адрес электронной почты
+    :param db:  Сессия базы данных
+    :return Возвращает сообщение об отправленном сообщении на почту
+
+    1. Проверяем наличие пользователя в базе данных по адресу электронной почты
+    2. Генерируем токен сброса пароля используя адрес электронной почты
+    3. Отправляем письмо на почту пользователя с ссылкой для сброса пароля
     """
     user = crud_user.get_by_email(db, email=email)
     if not user:
@@ -213,7 +211,18 @@ def recover_password(email: str, db: Session = Depends(get_db)):
 @router.post("/reset-password/", response_model=Msg)
 def reset_password(token: str = Body(...), new_password: str = Body(...), db: Session = Depends(get_db)):
     """
-    Reset password
+    Эндпойнт для сброса пароля.
+    :param token: токен сброса пароля
+    :param new_password: новый пароль
+    :param db: Сессия базы данных
+    :return Возвращает сообщение об успешном сбросе пароля
+
+    1. Проверяем токен сброса пароля и получаем адрес электронной почты из токена
+    2. Проверяем наличие пользователя в базе данных по адресу электронной почты
+    3. Проверяем активность пользователя
+    4. Хэшируем новый пароль
+    5. Обновляем пароль пользователя в базе данных
+
     """
     email = verify_password_reset_token(token)
     if not email:

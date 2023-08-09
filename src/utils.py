@@ -54,7 +54,7 @@ def send_reset_password_email(email_to: str, email: str, token: str):
     else:
         use_token = token
     server_host = config.SERVER_HOST
-    link = f"{server_host}/reset-password?token={token}"
+    link = f"{server_host}/api/reset-password?token={token}"
     send_email(
         email_to=email_to,
         subject_template=subject,
@@ -108,6 +108,6 @@ def verify_password_reset_token(token: str) -> Optional[str]:
             token, config.SECRET_KEY, algorithms=["HS256"]
         )
         assert decoded_token["sub"] == password_reset_jwt_subject
-        return decoded_token
+        return decoded_token["email"]
     except InvalidTokenError:
         return None

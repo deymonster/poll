@@ -322,3 +322,5 @@ fabric.properties
 
 src/**/local_config.py
 
+*.DS_Store
+
