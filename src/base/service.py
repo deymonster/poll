@@ -40,7 +40,7 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
             self, db_session: Session, *, db_obj: ModelType, obj_in: UpdateSchemaType
                ) -> ModelType:
         obj_data = jsonable_encoder(obj_in)
-        update_data = obj_in.dict(skip_defaults=True)
+        update_data = obj_in.model_dump(exclude_defaults=True)
         for field in obj_data:
             if field in update_data:
                 setattr(db_obj, field, update_data[field])

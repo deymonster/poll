@@ -15,7 +15,7 @@ from user.service import crud_user
 from api.utils.db import get_db
 from core import config
 from core.jwt import ALGORITHM
-from user.models import User
+from user.models import User, UserRole
 from base.schemas import TokenPayload
 from datetime import datetime, timedelta
 from core.jwt import create_access_token, create_refresh_token, ALGORITHM
@@ -80,7 +80,7 @@ class Oauth2PasswordBearerCookie(OAuth2):
 #         return HTTPAuthorizationCredentials(scheme=scheme, credentials=param)
 
 
-security = OAuth2PasswordBearer(tokenUrl="/login/access-token-vue")
+security = OAuth2PasswordBearer(tokenUrl="/api/login")
 
 
 def get_current_user(token: str = Depends(security), db: Session = Depends(get_db)):
@@ -110,9 +110,10 @@ def get_current_active_user(current_user: User = Security(get_current_user)):
     return current_user
 
 
-def get_current_active_superuser(current_user: User = Security(get_current_user)):
-    if not crud_user.is_superuser(current_user):
-        raise HTTPException(status_code=400, detail="The user doesn't have enough privileges")
+# Get current user with role
+def get_current_user_with_role(current_user: User = Depends(get_current_user), required_role: UserRole = None):
+    if required_role and required_role not in current_user.roles:
+        raise HTTPException(status_code=403, detail="The user doesn't have enough privileges")
     return current_user
 
 

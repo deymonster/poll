@@ -19,7 +19,7 @@ class User(Base):
     email = Column(String, unique=True, index=True)
     hashed_password = Column(String)
     is_active = Column(Boolean(), default=True)
-    is_superuser = Column(Boolean(), default=False)
+    polls = relationship("Poll", back_populates="user")
     _roles = Column("roles", String, default=UserRole.USER.value)
 
     @property
@@ -29,9 +29,6 @@ class User(Base):
     @roles.setter
     def roles(self, roles):
         self._roles = ",".join(roles)
-
-    poll = relationship("Poll", back_populates="user")
-    response = relationship("Response", back_populates="user")
 
 
 # class UserUUID(Base):

@@ -3,9 +3,9 @@ from enum import Enum
 from sqlalchemy.dialects.postgresql import ENUM, UUID
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, DateTime, JSON
 from sqlalchemy.orm import relationship
-from user.models import User
 from datetime import datetime
 import uuid
+from user.models import User
 
 
 class TypeQuestion(str, Enum):
@@ -13,6 +13,14 @@ class TypeQuestion(str, Enum):
     PLURAL = 'PLURAL ANSWER'
     FREE = 'FREE ANSWER'            # multiple text fields for answer
     FREE_TEXT = 'FREE TEXT ANSWER'  # one text field for answer
+
+
+class PollStatus(str, Enum):
+    DRAFT = 'DRAFT'
+    PUBLISHED = 'PUBLISHED'
+    CLOSED = 'CLOSED'
+    ENDED = 'ENDED'
+    ARCHIVED = 'ARCHIVED'
 
 
 class Poll(Base):
@@ -24,10 +32,10 @@ class Poll(Base):
     title = Column(String, index=True)
     description = Column(String, index=True)
     poll_cover = Column(String, nullable=True)
-    is_active = Column(Boolean, default=False)
+    poll_status = Column(ENUM(PollStatus), default=PollStatus.DRAFT)
     poll_url = Column(String)
     user_id = Column(Integer, ForeignKey("user.id"))
-    user = relationship(User, back_populates="poll")
+    user = relationship(User, back_populates="polls")
     question = relationship("Question", back_populates="poll")
     response = relationship("Response", back_populates="poll")
 
@@ -67,8 +75,6 @@ class Response(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     poll_id = Column(Integer, ForeignKey("poll.id"))
     poll = relationship("Poll", back_populates="response")
-    user_id = Column(Integer, ForeignKey("user.id"))
-    user = relationship("User", back_populates="response")
     question_id = Column(Integer, ForeignKey("question.id"))
     question = relationship("Question", back_populates="response")
     choice_id = Column(Integer, ForeignKey("choice.id"))

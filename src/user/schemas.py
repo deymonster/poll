@@ -5,8 +5,7 @@ import uuid
 
 class UserBase(BaseModel):
     email: Optional[str] = None
-    is_active: Optional[bool] = True
-    is_superuser: Optional[bool] = False
+    is_active: Optional[bool] = False
     full_name: Optional[str] = None
     roles: Optional[List[str]] = []
 
@@ -15,18 +14,19 @@ class UserBase(BaseModel):
 
 
 class UserBaseInDB(UserBase):
-    id: int = None
-
-    class Config:
-        orm_mode = True
+    id: Optional[int] = None
 
 
-class UserCreate(UserBaseInDB):
+class UserCreate(UserBase):
     email: str
     password: str
 
 
-class UserUpdate(UserBaseInDB):
+class UserCreateByEmail(UserBase):
+    email: str
+
+
+class UserUpdate(UserBase):
     password: Optional[str] = None
 
 
