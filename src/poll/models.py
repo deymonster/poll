@@ -62,6 +62,7 @@ class Choice(Base):
     id = Column(Integer, primary_key=True, index=True)
     text = Column(String, index=True)
     choice_cover = Column(String, nullable=True)
+    text_fields_count = Column(Integer, nullable=True)
     question_id = Column(Integer, ForeignKey("question.id"))
     question = relationship("Question", back_populates="choice")
     response = relationship("Response", back_populates="choice")

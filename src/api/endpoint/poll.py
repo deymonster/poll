@@ -26,10 +26,8 @@ current_dir = os.path.dirname(os.path.realpath(__file__))
 templates = Jinja2Templates(directory='templates')
 
 
-# locale.setlocale(locale.LC_TIME, 'ru_RU.UTF-8')
-# month_names = [locale.nl_langinfo(locale.MON_1 + i) for i in range(12)]
 
-@router.post("/create2", response_model=schemas.Poll)
+@router.post("/create2", response_model=schemas.Poll, deprecated=True)
 def create_poll2(
         *,
         db: Session = Depends(get_db),
@@ -50,10 +48,58 @@ def create_poll2(
 
 # POLL
 
-# # Получение списка опросов
-# @router.get("/polls/", response_model=List[schemas.Poll])
-# def get_polls(db: Session = Depends(get_db), user: User = Depends(get_current_active_user)):
-#     return service.get_all_user_poll(db=db, user_id=user.id)
+# endpoint to get all user polls
+@router.get("/user_polls", response_model=List[schemas.Poll])
+def user_polls(db: Session = Depends(get_db), user: User = Depends(get_current_active_user)):
+    """
+    Эндпоинт для получения списка опросов пользователя со статусом "Активен"
+    :param db: Сессия базы данных
+    :param user: Текущий пользователь со статусом "Активен"
+    :return: Список опросов пользователя
+    """
+    polls = service.get_all_user_poll(db=db, user_id=user.id)
+    return polls
+
+# endpoint for adding new poll user for vue frontend
+@router.post("/user_polls",  response_model=schemas.Poll)
+def create_poll(poll_data: schemas.CreateSimplePoll, db: Session = Depends(get_db),
+                user: User = Depends(get_current_active_user)):
+    """ Эндпоинт для создания нового опроса c название и описанием пользователем
+    :param poll_data: Данные опроса -  название и описание
+    :param db: Сессия базы данных
+    :param user: Текущий активнеы пользователь
+    :return: Созданный опрос
+    """
+    poll = service.create_new_simple_poll(db=db, poll=poll_data, user_id=user.id)
+    return poll
+
+
+# endpoint for creating question of poll
+@router.post("/user_polls/{poll_id}/questions/", response_model=schemas.Question)
+def create_question(poll_id: int,
+                    question: schemas.QuestionCreate,
+                    db: Session = Depends(get_db),
+                    user: User = Depends(get_current_active_user)):
+    """ Эндпоинт для создания нового вопроса в опросе
+    :param poll_id: Идентификатор опроса
+    :param question: Данные вопроса согласно схеме QuestionCreate
+    :param db: Сессия базы данных
+    :param user: Текущий активный пользователь
+    :return: Созданный вопрос
+
+    Пример создания вопроса:
+    {"type": "SINGLE ANSWER",
+        "text": "Сколько вам лет?",
+        "choices": [{"text": "Мне 10 лет"},
+            {"text": "Мне 15 лет"},
+            {"text": "Мне 20 лет"}]
+    }
+
+    """
+    return service.create_single_question(db=db, poll_id=poll_id, question_data=question)
+
+
+
 
 
 # Получение опроса со списками ответов
@@ -68,75 +114,11 @@ def create_poll(poll: schemas.Poll, db: Session = Depends(get_db), user: User = 
     return service.create_new_poll(db=db, poll=poll, user_id=user.id)
 
 
-# endpoint for creating poll with title and description only
-@router.post("/create/")
-def create_poll(request: Request, poll: schemas.CreateSimplePoll, db: Session = Depends(get_db)):
-    user_id = request.state.user.id
-    service.create_new_simple_poll(db=db, poll=poll, user_id=user_id)
-    return
 
 
-# endpoint for adding in database new poll with createsimplepoll using data from form and return all user polls
-@router.post("/create_from_form/")
-async def create_poll(request: Request, db: Session = Depends(get_db)):
-    user_id = request.state.user.id
-    data = await request.form()
-    poll = schemas.CreateSimplePoll(title=data['title'], description=data['description'])
-    service.create_new_simple_poll(db=db, poll=poll, user_id=user_id)
-    polls = service.get_all_user_poll(db=db, user_id=user_id)
-    return templates.TemplateResponse("partials/poll_list.html", {"request": request,
-                                                                  # "month_names": month_names,
-                                                                  "polls": polls})
 
 
-# endpoint for adding new poll user for vue frontend
-@router.post("/user_polls",  response_model=schemas.Poll)
-def create_poll(request: schemas.CreateSimplePoll, db: Session = Depends(get_db),
-                user: User = Depends(get_current_user)):
-    poll = service.create_new_simple_poll(db=db, poll=request, user_id=user.id)
-    return poll
 
-
-#
-#
-# # endpoint for detail view of poll
-# @router.get("/polls/{poll_id}/", response_model=schemas.PollDetail)
-# def get_poll(poll_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-#     return service.get_poll_detail(db=db, poll_id=poll_id, user_id=user.id)
-#
-#
-# # endpoint to get all polls from user
-# @router.get("/api/polls/", response_model=List[schemas.ListPoll])
-# def get_polls(db: Session = Depends(get_db), user: User = Depends(get_current_active_user)):
-#     return service.get_all_user_poll(db=db, user_id=user.id)
-#
-#
-# # endpoint to get all active polls from user
-# @router.get("/polls/active/", response_model=List[schemas.Poll])
-# def get_active_polls(db: Session = Depends(get_db), user: User = Depends(get_current_active_user)):
-#     return service.get_active_user_poll(db=db, user_id=user.id)
-#
-#
-# # endpoint for getting information about single poll
-# @router.get("/polls2/{poll_id}", response_model=schemas.SinglePoll)
-# def get_poll(poll_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_active_user)):
-#     poll = service.get_single_poll(db=db, poll_id=poll_id, user_id=user.id)
-#     if not poll:
-#         raise HTTPException(status_code=404, detail="Poll not found")
-#     return poll
-#
-#
-# # # query for updating poll
-# @router.put("/polls/{poll_id}", response_model=schemas.Poll)
-# def update_poll(poll_id: int, poll: schemas.UpdatePoll, db: Session = Depends(get_db)):
-#     return service.update_poll(db=db, poll_id=poll_id, poll=poll)
-#
-#
-# # endpoint for deleting poll
-# @router.delete("/polls/{poll_id}", response_model=schemas.Poll)
-# def delete_poll(poll_id: int, db: Session = Depends(get_db)):
-#     return service.delete_poll(db=db, poll_id=poll_id)
-#
 # # QUESTION
 #
 #
@@ -183,80 +165,7 @@ def create_poll(request: schemas.CreateSimplePoll, db: Session = Depends(get_db)
 #
 #
 # # RESPONSE
-#
-# # endpoint for creating response for question
-# @router.post("/polls/{poll_id}/questions/{question_id}/response/")
-# def create_response(poll_id: int,
-#                     question_id: int,
-#                     response_data: schemas.CreateSingleResponse,
-#                     db: Session = Depends(get_db)
-#                     ):
-#     response = service.create_new_response(db=db, response_data=response_data, question_id=question_id, poll_id=poll_id)
-#     if not response:
-#         raise HTTPException(status_code=404, detail="Unable to create response")
-#
-#     return response
-#
-#
-# # # endpoint for getting all responses for question
-# # @router.get("/polls/{poll_id}/questions/{question_id}/response/")
-# # def get_responses(poll_id: int, question_id: int, db: Session = Depends(get_db)):
-#
 
-
-# endpoint for login page
-# @router.get("/login")
-# def login(request: Request):
-#     access_token, refresh_token = get_token_from_cookie(request)
-#     if access_token is not None and refresh_token is not None:
-#         response = RedirectResponse(url='/user_polls', status_code=303)
-#         response.headers['Cache-Control'] = 'no-cache, must-revalidate'
-#         return response
-#     return templates.TemplateResponse("login.html", {"request": request})
-#
-#
-# # endpoint for login page v3
-# @router.get("/loginv3")
-# def login(request: Request):
-#     access_token, refresh_token = get_token_from_cookie(request)
-#     print(f'Token from loginv3: {access_token}')
-#     if access_token is not None and refresh_token is not None:
-#         # response = RedirectResponse(url='/polls', status_code=303)
-#         response = templates.TemplateResponse("polls.html", {"request": request})
-#         response.headers['Cache-Control'] = 'no-cache, must-revalidate'
-#         return response
-#     return templates.TemplateResponse("login-v3.html", {"request": request})
-#
-
-
-# endpoint for home page
-@router.get("/home", response_class=HTMLResponse)
-def home(request: Request, user: User = Depends(get_current_user)):
-    """
-    Home page endpoint
-    """
-    return templates.TemplateResponse("home.html", {"request": request})
-
-
-# create test_login endpoint to redirect to polls page without depends
-@router.get("/test_login", response_class=HTMLResponse)
-def test(request: Request):
-    """
-    Test page endpoint
-    """
-    response = RedirectResponse(url='/polls', status_code=303)
-    response.headers['Cache-Control'] = 'no-cache, must-revalidate'
-    return response
-
-
-# endpoint to get all user polls for vue
-@router.get("/user_polls")
-def user_polls(request: Request, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    """
-    Polls page endpoint
-    """
-    polls = service.get_all_user_poll(db=db, user_id=user.id)
-    return polls
 
 
 # Получение детальной информации об опросе
@@ -269,7 +178,7 @@ def get_poll(request: Request, poll_id: int, db: Session = Depends(get_db), user
 
 
 #  endpoint for paginated user polls
-@router.get("/polls")
+@router.get("/polls", deprecated=True)
 def polls(request: Request,
           page: int = 1,
           page_size: int = 20,
@@ -302,7 +211,7 @@ def polls(request: Request,
 
 
 # endpoint for searching polls
-@router.get("/polls/search")
+@router.get("/polls/search", deprecated=True)
 def search_polls(request: Request,
                  query: str = Query(..., desription="Search query"),
                  page: int = Query(1, description="Page number"),
@@ -344,7 +253,7 @@ def update_poll(poll_id: int,
 
 
 # endpoint for delete user poll by id and return polls list
-@router.delete("/polls/{poll_id}")
+@router.delete("/polls/{poll_id}", deprecated=True)
 def delete_poll(request: Request, poll_id: int, db: Session = Depends(get_db)):
     """
     Delete poll endpoint
@@ -372,15 +281,6 @@ async def upload_image(request: Request, poll_id: int, db: Session = Depends(get
     file_name = service.upload_poll_cover(db, file=image, poll_id=poll_id, user_id=request.state.user.id)
     return {"file_name": file_name}
 
-
-# endpoint for displaying all polls
-# @router.get("/user_polls/", response_class=HTMLResponse)
-# def polls(request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-#     """
-#     Polls page endpoint
-#     """
-#     polls = service.get_all_user_poll(db=db, user_id=user.id)
-#     return templates.TemplateResponse("poll2.html", {"request": request, "polls": polls})
 
 
 # endpoint for adding new question to poll

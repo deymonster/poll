@@ -21,6 +21,7 @@ class Choice(ChoiceBase):
 class ChoiceCreate(BaseModel):
     text: str
     choice_cover: Optional[str] = None
+    text_fields_count: Optional[int] = None
 
 
 # schema for updating Choice
@@ -53,7 +54,7 @@ class QuestionBase(BaseModel):
 
 class Question(QuestionBase):
     poll_id: int
-    choices: Optional[List[Choice]] = []
+    choice: Optional[List[Choice]] = []
 
     class Config:
         orm_mode = True
@@ -69,11 +70,12 @@ class QuestionPage(BaseModel):
 
 # schema for creating Question
 class QuestionCreate(BaseModel):
-    text: str
     type: QuestionType
+    text: str
     question_cover: Optional[str] = None
-    option_pass: Optional[bool] = False
-    option_other_answer: Optional[bool] = False
+    option_pass: Optional[bool] = True
+    option_other_answer: Optional[bool] = True
+    choice: Optional[List[ChoiceCreate]] = []
 
 
 # schema for plural question without choices

@@ -12,6 +12,8 @@ from mimetypes import guess_type
 
 from uuid import UUID
 
+from .schemas import QuestionType
+
 
 class CRUDPoll(CRUDBase[schemas.Poll, schemas.CreatePoll, schemas.UpdatePoll]):
     # create new poll with questions
@@ -224,12 +226,17 @@ def upload_poll_cover(db: Session, file: UploadFile, poll_id: int, user_id: int)
     return file_name
 
 
-
 # QUESTIONS
 
 # add new question to poll
-def create_new_question(db: Session, question: schemas.Question, poll_id: int):
-    db_question = models.Question(**question.dict(), poll_id=poll_id)
+def create_new_question(db: Session, question: schemas.QuestionCreate, poll_id: int):
+    """ Добавление нового вопроса в опрос
+    :param db: сессия БД
+    :param question: схема вопроса
+    :param poll_id: id опроса
+    :return: db_question
+    """
+    db_question = models.Question(**question.model_dump(), poll_id=poll_id)
     db.add(db_question)
     db.commit()
     db.refresh(db_question)
@@ -247,6 +254,25 @@ def get_all_choices_from_question(db: Session, question_id: int):
     return db.query(models.Choice).filter(models.Choice.question_id == question_id).all()
 
 
+# create single question with default number of choices
+def create_single_question(db: Session,
+                           poll_id: int,
+                           question_data: schemas.QuestionCreate) -> models.Question:
+    """" Создание вопроса с вариантами ответа
+    :param db: сессия БД
+    :param poll_id: id опроса
+    :param question_data: схема вопроса
+    """
+    db_question = models.Question(**question_data.model_dump(), poll_id=poll_id)
+    db.add(db_question)
+    db.flush()
+
+    for choice in question_data.choice:
+        db_choice = models.Choice(**choice.model_dump(), question_id=db_question.id)
+        db.add(db_choice)
+    db.commit()
+    return db_question
+
 # create list questions with nested choices - for creating poll
 def create_question(db: Session, questions: List[schemas.Question], poll_id: int) -> List[models.Question]:
     db_questions = []
@@ -255,8 +281,8 @@ def create_question(db: Session, questions: List[schemas.Question], poll_id: int
         db.add(db_question)
         db.flush()
         db.refresh(db_question)
-        db_choices = [models.Choice(**choice.dict(), question_id=db_question.id) for choice in question.choices]
-        db.add_all(db_choices)
+        db_choice = [models.Choice(**choice.dict(), question_id=db_question.id) for choice in question.choices]
+        db.add_all(db_choice)
         db_questions.append(db_question)
     db.commit()
 
@@ -266,21 +292,16 @@ def get_single_question(db: Session, question_id: int):
     return db.query(models.Question).options(joinedload(models.Question.choice)).filter(models.Question.id ==
                                                                                          question_id).first()
 
+# Choices
 
 
-
-
-# #create new poll
-# def create_new_poll(db: Session, poll: schemas.CreatePoll, user_id: int):
-#     db_poll = models.Poll(**poll.dict(exclude={'questions'}), user_id=user_id)
-#     db.add(db_poll)
-#     db.commit()
-#     db.refresh(db_poll)
-#     create_question(db=db, questions=poll.question, poll_id=db_poll.id)
-#     return db_poll
-
-
-
+# create new choice for question
+def create_new_choice(db: Session, choice: schemas.ChoiceCreate, question_id: int):
+    db_choice = models.Choice(**choice.model_dump(), question_id=question_id)
+    db.add(db_choice)
+    db.commit()
+    db.refresh(db_choice)
+    return db_choice
 
 
 # update question
