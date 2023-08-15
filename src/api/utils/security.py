@@ -10,7 +10,9 @@ from starlette.responses import RedirectResponse
 from starlette.status import HTTP_403_FORBIDDEN, HTTP_302_FOUND, HTTP_401_UNAUTHORIZED, HTTP_404_NOT_FOUND, \
     HTTP_500_INTERNAL_SERVER_ERROR
 
+from core.security import get_password_hash
 from db.session import SessionLocal
+from user.schemas import UserCreate
 from user.service import crud_user
 from api.utils.db import get_db
 from core import config
@@ -81,6 +83,26 @@ class Oauth2PasswordBearerCookie(OAuth2):
 
 
 security = OAuth2PasswordBearer(tokenUrl="/api/login")
+
+
+# create initial user
+def create_initial_user(db: Session):
+    user = crud_user.get_by_email(db, email=config.FIRST_SUPERUSER)
+    if not user:
+        # user_in = User(
+        #     email=config.FIRST_SUPERUSER,
+        #     password=config.FIRST_SUPERUSER_PASSWORD,
+        #     is_active=True,
+        #     roles=[UserRole.SUPERADMIN],
+        # )
+        db_obj = UserCreate(
+            email=config.FIRST_SUPERUSER,
+            password=config.FIRST_SUPERUSER_PASSWORD,
+            is_active=True,
+            roles=[UserRole.SUPERADMIN]
+        )
+        user = crud_user.create(db, obj_in=db_obj)
+    return user
 
 
 def get_current_user(token: str = Depends(security), db: Session = Depends(get_db)):

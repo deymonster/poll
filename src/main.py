@@ -6,6 +6,7 @@ from starlette.middleware.cors import CORSMiddleware
 from api import routers
 from db.session import SessionLocal, engine
 from fastapi.staticfiles import StaticFiles
+from api.utils.security import create_initial_user
 
 
 
@@ -45,6 +46,10 @@ async def db_session_middleware(request: Request, call_next):
         request.state.db.close()
     return response
 
+
+@app.on_event("startup")
+async def startup_event():
+    create_initial_user(db=SessionLocal())
 
 app.include_router(routers.api_router, prefix="/api")
 
