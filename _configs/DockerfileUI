@@ -1,0 +1,23 @@
+FROM                node:lts-alpine as build-stage
+ARG                 GIT_TOKEN
+WORKDIR             /app
+
+
+RUN                 apk update && apk upgrade && \
+                    apk add --no-cache  git
+RUN                 git clone https://${GIT_TOKEN}@github.com/deymonster/poll_ui.git
+
+WORKDIR             /app/poll_ui
+RUN                 yarn install --frozen-lockfile
+RUN                 yarn build
+
+
+FROM                nginx:stable-alpine as production-stage
+COPY                --from=build-stage /app/poll_ui/dist /usr/share/nginx/html
+EXPOSE              80 443
+CMD                 ["nginx", "-g", "daemon off;"]
+
+
+
+
+

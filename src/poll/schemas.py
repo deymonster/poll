@@ -78,6 +78,17 @@ class QuestionCreate(BaseModel):
     choice: Optional[List[ChoiceCreate]] = []
 
 
+# schema for updating Question
+class QuestionUpdate(BaseModel):
+    text: Optional[str]
+    question_cover: Optional[str] = None
+    option_pass: Optional[bool] = True
+    option_other_answer: Optional[bool] = True
+    choice: Optional[List[ChoiceUpdate]] = []
+
+    class Config:
+        orm_mode = True
+
 # schema for plural question without choices
 class PluralQuestion(Question):
     pass

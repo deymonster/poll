@@ -19,7 +19,7 @@ from user.service import crud_user
 router = APIRouter()
 
 
-@router.get("/", response_model=List[User])
+@router.get("", response_model=List[User])
 def read_users(
     db: Session = Depends(get_db),
     skip: int = 0,
@@ -37,7 +37,7 @@ def read_users(
     return users
 
 
-@router.post("/", response_model=User)
+@router.post("", response_model=User)
 def create_user(
     *,
     db: Session = Depends(get_db),

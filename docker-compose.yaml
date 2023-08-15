@@ -32,6 +32,19 @@ services:
     restart: on-failure
     depends_on:
       - pool-db
+#  poll-ui:
+#    build:
+#      dockerfile: _configs/DockerfileUI
+#      args:
+#        - GIT_TOKEN=${GIT_TOKEN}
+#    container_name: poll-ui
+#    ports:
+#      - "80:80"
+#      - "443:443"
+#    env_file:
+#      - .env
+#    environment:
+#      - VUE_APP_BACKEND_URL=http://poll-app:5000
 
 
 volumes:

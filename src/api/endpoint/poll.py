@@ -75,29 +75,38 @@ def create_poll(poll_data: schemas.CreateSimplePoll, db: Session = Depends(get_d
 
 
 # endpoint for creating question of poll
-@router.post("/user_polls/{poll_id}/questions/", response_model=schemas.Question)
-def create_question(poll_id: int,
-                    question: schemas.QuestionCreate,
+@router.post("/user_polls/{poll_id}/questions", response_model=schemas.Question)
+def create_question(question: schemas.QuestionCreate,
+                    poll_id: int,
                     db: Session = Depends(get_db),
-                    user: User = Depends(get_current_active_user)):
+                    user: User = Depends(get_current_active_user)
+                    ):
     """ Эндпоинт для создания нового вопроса в опросе
-    :param poll_id: Идентификатор опроса
-    :param question: Данные вопроса согласно схеме QuestionCreate
-    :param db: Сессия базы данных
-    :param user: Текущий активный пользователь
-    :return: Созданный вопрос
+        :param poll_id: Идентификатор опроса
+        :param question: Данные вопроса согласно схеме QuestionCreate
+        :param db: Сессия базы данных
+        :param user: Текущий активный пользователь
+        :return: Созданный вопрос
 
-    Пример создания вопроса:
-    {"type": "SINGLE ANSWER",
-        "text": "Сколько вам лет?",
-        "choices": [{"text": "Мне 10 лет"},
-            {"text": "Мне 15 лет"},
-            {"text": "Мне 20 лет"}]
-    }
-
-    """
+        Пример создания вопроса:
+        {"type": "SINGLE ANSWER",
+            "text": "Сколько вам лет?",
+            "choice": [{"text": "Мне 10 лет"},
+                {"text": "Мне 15 лет"},
+                {"text": "Мне 20 лет"}]
+        }
+        """
     return service.create_single_question(db=db, poll_id=poll_id, question_data=question)
 
+
+# endpoint for updating question of poll
+@router.put("/user_polls/{poll_id}/questions/{question_id}", response_model=schemas.Question)
+def update_question(question_id: int,
+                    question: schemas.QuestionUpdate,
+                    db: Session = Depends(get_db),
+                    user: User = Depends(get_current_active_user)):
+    """ Эндпоинт для обновления вопроса в опросе"""
+    return service.update_single_question(db=db, question_id=question_id, question=question)
 
 
 
@@ -171,6 +180,7 @@ def create_poll(poll: schemas.Poll, db: Session = Depends(get_db), user: User = 
 # Получение детальной информации об опросе
 @router.get("/polls/{poll_id}")
 def get_poll(request: Request, poll_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
+    print(request.headers.get('Referer').split('/')[:3]) # сджойнить и получить хост фронта
     poll = service.get_single_poll(db=db, poll_id=poll_id, user_id=user.id)
     if not poll:
         raise HTTPException(status_code=404, detail="Poll not found")

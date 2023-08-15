@@ -1,6 +1,6 @@
 import logging
 from datetime import timedelta
-
+from fastapi import Request
 import jwt
 from jwt import PyJWTError
 from fastapi import APIRouter, Body, Depends, HTTPException
@@ -21,7 +21,8 @@ from user.service import crud_user
 from utils import (generate_password_reset_token,
                    send_reset_password_email, verify_password_reset_token)
 from starlette.responses import Response, RedirectResponse, JSONResponse
-from fastapi.responses import HTMLResponse
+from urllib.parse import urlparse
+
 
 router = APIRouter()
 
@@ -130,15 +131,17 @@ def test_token(current_user: DBUser = Depends(get_current_user)):
 
 
 @router.post("/password-recovery/{email}", response_model=Msg)
-def recover_password(email: str, db: Session = Depends(get_db)):
+def recover_password(request: Request,  email: str, db: Session = Depends(get_db)):
     """
-    Эндпойнт для сброса пароля.
+    Эндпойнт для сброса пароля
+    :param request Объект Request.
     :param email: адрес электронной почты
     :param db:  Сессия базы данных
     :return Возвращает сообщение об отправленном сообщении на почту
 
     1. Проверяем наличие пользователя в базе данных по адресу электронной почты
-    2. Генерируем токен сброса пароля используя адрес электронной почты
+    2. Генерируем токен сброса пароля
+    3. Получаем адрес фронта из headers запроса - referer
     3. Отправляем письмо на почту пользователя с ссылкой для сброса пароля
     """
     user = crud_user.get_by_email(db, email=email)
@@ -148,15 +151,30 @@ def recover_password(email: str, db: Session = Depends(get_db)):
             status_code=404,
             detail="The user with this username does not exist in the system.",
         )
+    referer = request.headers.get("Referer")
+    # TODO: add checking for empty referer etc
+    frontend_url = f"{urlparse(referer).scheme}://{urlparse(referer).netloc}"
     password_reset_token = generate_password_reset_token(email=email)
     print(f'Reset token {password_reset_token}')
-    send_reset_password_email(
-        email_to=user.email, email=email, token=password_reset_token
+    send_reset_password_email(email_to=user.email,
+                              email=email,
+                              token=password_reset_token,
+                              front_url=frontend_url
     )
     return {"msg": "Password recovery email sent"}
 
 
-@router.post("/reset-password/", response_model=Msg)
+# endpoint for vefication reset token
+@router.get("/reset-password/verify", response_model=Msg)
+def reset_password_verify_token(token:  str = Body(...), db: Session = Depends(get_db)):
+    email = verify_password_reset_token(token)
+    if not email:
+        raise HTTPException(status_code=400, detail="Invalid token")
+    # return resonse with code 200 and message about valid token
+    return {"msg": "Token is valid"}
+
+
+@router.post("/reset-password", response_model=Msg)
 def reset_password(token: str = Body(...), new_password: str = Body(...), db: Session = Depends(get_db)):
     """
     Эндпойнт для сброса пароля по ссылке полученной из /password-recovery/{email}".
@@ -172,7 +190,8 @@ def reset_password(token: str = Body(...), new_password: str = Body(...), db: Se
     5. Обновляем пароль пользователя в базе данных
 
     Ссылка приходит такого вида:
-    http://127.0.0.1:5000/api/reset-password?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJleHAiOjE2OTIwNzM1MzQuNDE0ODY4LCJuYmYiOjE2OTE5MDA3MzQsInN1YiI6InByZXNlbnQiLCJlbWFpbCI6ImRleW1vbnN0ZXJAeWFuZGV4LnJ1In0.V7Wd_Tz1UTMdy4ysZTB7JqGbd4Ug1Gxaha8btf-MbVk
+    http://127.0.0.1:4000/reset-password?token={token}
+    TODO верификация временнного токена при восстановлении пароля по ссылке перед сменой пароля
     """
     email = verify_password_reset_token(token)
     if not email:

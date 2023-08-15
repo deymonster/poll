@@ -9,6 +9,7 @@ from . import models, schemas
 from typing import List
 from base.service import CRUDBase
 from mimetypes import guess_type
+from typing import Optional
 
 from uuid import UUID
 
@@ -228,19 +229,7 @@ def upload_poll_cover(db: Session, file: UploadFile, poll_id: int, user_id: int)
 
 # QUESTIONS
 
-# add new question to poll
-def create_new_question(db: Session, question: schemas.QuestionCreate, poll_id: int):
-    """ Добавление нового вопроса в опрос
-    :param db: сессия БД
-    :param question: схема вопроса
-    :param poll_id: id опроса
-    :return: db_question
-    """
-    db_question = models.Question(**question.model_dump(), poll_id=poll_id)
-    db.add(db_question)
-    db.commit()
-    db.refresh(db_question)
-    return db_question
+
 
 
 # get all questions from poll
@@ -254,24 +243,46 @@ def get_all_choices_from_question(db: Session, question_id: int):
     return db.query(models.Choice).filter(models.Choice.question_id == question_id).all()
 
 
-# create single question with default number of choices
+# create single question with  choices
 def create_single_question(db: Session,
                            poll_id: int,
-                           question_data: schemas.QuestionCreate) -> models.Question:
+                           question_data: schemas.QuestionCreate,
+                           ) -> models.Question:
     """" Создание вопроса с вариантами ответа
     :param db: сессия БД
     :param poll_id: id опроса
     :param question_data: схема вопроса
     """
-    db_question = models.Question(**question_data.model_dump(), poll_id=poll_id)
+    db_question = models.Question(**question_data.model_dump(exclude={"choice"}), poll_id=poll_id)
     db.add(db_question)
     db.flush()
+    for choice_data in question_data.choice:
+        db_choice = models.Choice(**choice_data.model_dump(), question_id=db_question.id)
+        db.add(db_choice)
+    db.commit()
+    return db_question
 
-    for choice in question_data.choice:
+
+# update single question
+def update_single_question(db: Session, question_id: int, question: schemas.QuestionUpdate):
+    """ Обновление вопроса с вариантами ответа
+    :param db: сессия БД
+    :param question_id: id вопроса
+    :param question: схема обновления
+    """
+    db_question = db.query(models.Question).filter(models.Question.id == question_id).first()
+    if not db_question:
+        raise HTTPException(status_code=404, detail="Question not found")
+    # otherwise update question
+    for key, value in question.model_dump(exclude_unset=True).items():
+        setattr(db_question, key, value)
+
+    for choice in question.choice:
         db_choice = models.Choice(**choice.model_dump(), question_id=db_question.id)
         db.add(db_choice)
     db.commit()
     return db_question
+
 
 # create list questions with nested choices - for creating poll
 def create_question(db: Session, questions: List[schemas.Question], poll_id: int) -> List[models.Question]:
