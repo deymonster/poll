@@ -22,7 +22,7 @@ from utils import (generate_password_reset_token,
                    send_reset_password_email, verify_password_reset_token)
 from starlette.responses import Response, RedirectResponse, JSONResponse
 from urllib.parse import urlparse
-
+from fastapi import BackgroundTasks
 
 router = APIRouter()
 
@@ -131,10 +131,14 @@ def test_token(current_user: DBUser = Depends(get_current_user)):
 
 
 @router.post("/password-recovery/{email}", response_model=Msg)
-def recover_password(request: Request,  email: str, db: Session = Depends(get_db)):
+def recover_password(request: Request,
+                     backgroud_tasks: BackgroundTasks,
+                     email: str,
+                     db: Session = Depends(get_db)):
     """
     Эндпойнт для сброса пароля
     :param request Объект Request.
+    :param backgroud_tasks: Зависимость от класса BackgroundTasks для отправки письма в фоновом режиме
     :param email: адрес электронной почты
     :param db:  Сессия базы данных
     :return Возвращает сообщение об отправленном сообщении на почту
@@ -156,11 +160,11 @@ def recover_password(request: Request,  email: str, db: Session = Depends(get_db
     frontend_url = f"{urlparse(referer).scheme}://{urlparse(referer).netloc}"
     password_reset_token = generate_password_reset_token(email=email)
     print(f'Reset token {password_reset_token}')
-    send_reset_password_email(email_to=user.email,
-                              email=email,
-                              token=password_reset_token,
-                              front_url=frontend_url
-    )
+    backgroud_tasks.add_task(send_reset_password_email,
+                             email_to=user.email,
+                             email=email,
+                             token=password_reset_token,
+                             front_url=frontend_url)
     return {"msg": "Password recovery email sent"}
 
 
