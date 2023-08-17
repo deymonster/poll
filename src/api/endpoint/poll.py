@@ -11,6 +11,7 @@ from poll import schemas, service
 from poll.service import crud_poll
 from user.models import User
 from user.schemas import UserBase
+from api.utils.logger import PollLogger
 
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -22,28 +23,7 @@ from uuid import UUID
 router = APIRouter()
 
 current_dir = os.path.dirname(os.path.realpath(__file__))
-# templates_dir = os.path.join(current_dir, '..', '..', 'templates')
 templates = Jinja2Templates(directory='templates')
-
-
-
-@router.post("/create2", response_model=schemas.Poll, deprecated=True)
-def create_poll2(
-        *,
-        db: Session = Depends(get_db),
-        poll_in: schemas.Poll,
-        user: User = Depends(get_current_user),
-):
-    """
-    Create new poll by user using CRUD base
-    :param poll_in:
-    :param db:
-    :param user:
-    :return:
-    """
-    print(poll_in)
-    crud_poll.create_new_poll(db=db, poll=poll_in, user_id=user.id)
-    return []
 
 
 # POLL
@@ -60,10 +40,12 @@ def user_polls(db: Session = Depends(get_db), user: User = Depends(get_current_a
     polls = service.get_all_user_poll(db=db, user_id=user.id)
     return polls
 
+
 # endpoint for adding new poll user for vue frontend
 @router.post("/user_polls",  response_model=schemas.Poll)
-def create_poll(poll_data: schemas.CreateSimplePoll, db: Session = Depends(get_db),
-                user: User = Depends(get_current_active_user)):
+def create_poll(
+        poll_data: schemas.CreateSimplePoll, db: Session = Depends(get_db), user: User = Depends(get_current_active_user)
+):
     """ Эндпоинт для создания нового опроса c название и описанием пользователем
     :param poll_data: Данные опроса -  название и описание
     :param db: Сессия базы данных
@@ -76,11 +58,9 @@ def create_poll(poll_data: schemas.CreateSimplePoll, db: Session = Depends(get_d
 
 # endpoint for creating question of poll
 @router.post("/user_polls/{poll_id}/questions", response_model=schemas.Question)
-def create_question(question: schemas.QuestionCreate,
-                    poll_id: int,
-                    db: Session = Depends(get_db),
+def create_question(question: schemas.QuestionCreate, poll_id: int, db: Session = Depends(get_db),
                     user: User = Depends(get_current_active_user)
-                    ):
+):
     """ Эндпоинт для создания нового вопроса в опросе
         :param poll_id: Идентификатор опроса
         :param question: Данные вопроса согласно схеме QuestionCreate
@@ -101,14 +81,13 @@ def create_question(question: schemas.QuestionCreate,
 
 # endpoint for updating question of poll
 @router.put("/user_polls/{poll_id}/questions/{question_id}", response_model=schemas.Question)
-def update_question(question_id: int,
-                    question: schemas.QuestionUpdate,
-                    db: Session = Depends(get_db),
-                    user: User = Depends(get_current_active_user)):
+def update_question(
+        question_id: int,
+        question: schemas.QuestionUpdate,
+        db: Session = Depends(get_db),
+        user: User = Depends(get_current_active_user)):
     """ Эндпоинт для обновления вопроса в опросе"""
     return service.update_single_question(db=db, question_id=question_id, question=question)
-
-
 
 
 # Получение опроса со списками ответов
@@ -121,12 +100,6 @@ def get_poll_responses(poll_id: int, db: Session = Depends(get_db), user: User =
 @router.post("/create_full/", response_model=schemas.Poll)
 def create_poll(poll: schemas.Poll, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
     return service.create_new_poll(db=db, poll=poll, user_id=user.id)
-
-
-
-
-
-
 
 # # QUESTION
 #
@@ -176,11 +149,9 @@ def create_poll(poll: schemas.Poll, db: Session = Depends(get_db), user: User = 
 # # RESPONSE
 
 
-
 # Получение детальной информации об опросе
 @router.get("/polls/{poll_id}")
 def get_poll(request: Request, poll_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)):
-    print(request.headers.get('Referer').split('/')[:3]) # сджойнить и получить хост фронта
     poll = service.get_single_poll(db=db, poll_id=poll_id, user_id=user.id)
     if not poll:
         raise HTTPException(status_code=404, detail="Poll not found")

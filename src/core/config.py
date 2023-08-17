@@ -34,13 +34,11 @@ BACKEND_CORS_ORIGINS = [
 ]
 
 # Data Base
-SQLALCHEMY_DATABASE_URI = (
-    f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}"
-)
+SQLALCHEMY_DATABASE_URI = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_NAME}"
 
 
 PROJECT_NAME = "TestDesk"
-SERVER_HOST = 'http://127.0.0.1:5000'
+SERVER_HOST = "http://127.0.0.1:5000"
 
 # Email
 SMTP_TLS = True
