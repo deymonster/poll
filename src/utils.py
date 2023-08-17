@@ -84,7 +84,7 @@ def send_new_account_email(email_to: str, email: str, password: str):
             "username": email,
             "email": email_to,
             "password": password,
-            "link": link
+            "link": link,
         },
     )
 
@@ -104,9 +104,7 @@ def generate_password_reset_token(email: str):
 
 def verify_password_reset_token(token: str) -> Optional[str]:
     try:
-        decoded_token = jwt.decode(
-            token, config.SECRET_KEY, algorithms=["HS256"]
-        )
+        decoded_token = jwt.decode(token, config.SECRET_KEY, algorithms=["HS256"])
         assert decoded_token["sub"] == password_reset_jwt_subject
         return decoded_token["email"]
     except InvalidTokenError:

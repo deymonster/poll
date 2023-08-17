@@ -1,4 +1,4 @@
-import logging
+
 from datetime import timedelta
 from fastapi import Request
 import jwt
@@ -23,14 +23,18 @@ from utils import (generate_password_reset_token,
 from starlette.responses import Response, RedirectResponse, JSONResponse
 from urllib.parse import urlparse
 from fastapi import BackgroundTasks
+from api.utils.logger import PollLogger
+
+# Logging
+logger = PollLogger(__name__).get_logger()
 
 router = APIRouter()
 
 
 # endpoint to login with  vue js
 @router.post("/login", summary="Авторизация", description="Авторизация пользователя в системе")
-def login_access_token_vue(response: Response, db: Session = Depends(get_db),
-                           form_data: OAuth2PasswordRequestForm = Depends()):
+def login_access_token_vue(
+        response: Response, db: Session = Depends(get_db), form_data: OAuth2PasswordRequestForm = Depends()):
     """ Эндпоинт для авторизации пользователя в системе.
 
     :param response: Ответ сервера для установки куки
@@ -44,9 +48,7 @@ def login_access_token_vue(response: Response, db: Session = Depends(get_db),
     4. Генерируем токен обновления и устанавливаем время жизни токена
     5. Возвращаем сообщение об успешной авторизации,  токен доступа и токен обновления
     """
-    user = crud_user.authenticate(
-        db, email=form_data.username, password=form_data.password
-    )
+    user = crud_user.authenticate(db, email=form_data.username, password=form_data.password)
     if not user:
         raise HTTPException(status_code=400, detail="Incorrect email or password")
     elif not crud_user.is_active(user):
@@ -58,9 +60,7 @@ def login_access_token_vue(response: Response, db: Session = Depends(get_db),
     )
 
     refresh_token_expires = timedelta(minutes=config.REFRESH_TOKEN_EXPIRE_MINUTES)
-    refresh_token = create_refresh_token(
-        data={"sub": user.email}, user_id=user.id, expire_delta=refresh_token_expires
-    )
+    refresh_token = create_refresh_token(data={"sub": user.email}, user_id=user.id, expire_delta=refresh_token_expires)
 
     return {
         "message": "Login successfull",
@@ -72,7 +72,7 @@ def login_access_token_vue(response: Response, db: Session = Depends(get_db),
 # endpoint for refresh token for vue js
 @router.post("/refresh", summary="Обновление токена", description="Обновление токена доступа")
 def login_refresh_token_vue(token_data: RefreshToken, db: Session = Depends(get_db)):
-    """" Эндпоинт для обновления токена доступа.
+    """ " Эндпоинт для обновления токена доступа.
     :param token_data: Зависимость от класса RefreshToken для получения данных из тела запроса
     :param db: Сессия базы данных
     :return: Возвращает токен доступа и токен обновления
@@ -97,7 +97,7 @@ def login_refresh_token_vue(token_data: RefreshToken, db: Session = Depends(get_
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"}
+        headers={"WWW-Authenticate": "Bearer"},
     )
     try:
         refresh_token = token_data.refresh_token
@@ -131,10 +131,7 @@ def test_token(current_user: DBUser = Depends(get_current_user)):
 
 
 @router.post("/password-recovery/{email}", response_model=Msg)
-def recover_password(request: Request,
-                     backgroud_tasks: BackgroundTasks,
-                     email: str,
-                     db: Session = Depends(get_db)):
+def recover_password(request: Request,backgroud_tasks: BackgroundTasks, email: str, db: Session = Depends(get_db)):
     """
     Эндпойнт для сброса пароля
     :param request Объект Request.
@@ -149,7 +146,7 @@ def recover_password(request: Request,
     3. Отправляем письмо на почту пользователя с ссылкой для сброса пароля
     """
     user = crud_user.get_by_email(db, email=email)
-    print(f'User  get by email {user}')
+    logger.info(f"User  get by email {user}")
     if not user:
         raise HTTPException(
             status_code=404,
@@ -159,18 +156,15 @@ def recover_password(request: Request,
     # TODO: add checking for empty referer etc
     frontend_url = f"{urlparse(referer).scheme}://{urlparse(referer).netloc}"
     password_reset_token = generate_password_reset_token(email=email)
-    print(f'Reset token {password_reset_token}')
-    backgroud_tasks.add_task(send_reset_password_email,
-                             email_to=user.email,
-                             email=email,
-                             token=password_reset_token,
+    logger.info(f"Reset token {password_reset_token}")
+    backgroud_tasks.add_task(send_reset_password_email, email_to=user.email, email=email, token=password_reset_token, \
                              front_url=frontend_url)
     return {"msg": "Password recovery email sent"}
 
 
 # endpoint for vefication reset token
 @router.get("/reset-password/verify", response_model=Msg)
-def reset_password_verify_token(token:  str = Body(...), db: Session = Depends(get_db)):
+def reset_password_verify_token(token: str = Body(...), db: Session = Depends(get_db)):
     email = verify_password_reset_token(token)
     if not email:
         raise HTTPException(status_code=400, detail="Invalid token")

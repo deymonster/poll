@@ -36,14 +36,15 @@ class ChoiceDelete(Choice):
 
 
 class QuestionType(str, Enum):
-    SINGLE = 'SINGLE ANSWER'
-    PLURAL = 'PLURAL ANSWER'
-    FREE = 'FREE ANSWER'
-    FREE_TEXT = 'FREE TEXT ANSWER'
+    SINGLE = "SINGLE ANSWER"
+    PLURAL = "PLURAL ANSWER"
+    FREE = "FREE ANSWER"
+    FREE_TEXT = "FREE TEXT ANSWER"
 
 
 class QuestionBase(BaseModel):
     """Base model schemas question"""
+
     id: int
     type: QuestionType
     text: str
@@ -89,6 +90,7 @@ class QuestionUpdate(BaseModel):
     class Config:
         orm_mode = True
 
+
 # schema for plural question without choices
 class PluralQuestion(Question):
     pass
@@ -110,6 +112,7 @@ class QuestionDelete(Question):
 
 class PollBase(BaseModel):
     """Base model schemas poll"""
+
     created_at: datetime = datetime.utcnow()
     title: str
     description: Optional[str] = None
@@ -151,7 +154,6 @@ class UpdatePoll(BaseModel):
     is_active: bool = False
 
 
-
 class ListPoll(Poll):
     pass
 
@@ -159,7 +161,6 @@ class ListPoll(Poll):
 # schema for single poll with nested questions
 class SinglePoll(Poll):
     question: Optional[List[Question]] = []
-
 
 
 # schema for deleting Poll
@@ -204,11 +205,11 @@ class MultipleChoiceResponse(BaseModel):
 
 
 class SingleTextResponse(BaseModel):
-    answer_text: constr(max_length=500, pattern=r'^[а-яА-ЯёЁa-zA-Z0-9\s]+$')
+    answer_text: constr(max_length=500, pattern=r"^[а-яА-ЯёЁa-zA-Z0-9\s]+$")
 
 
 class MultipleTextResponse(BaseModel):
-    answer_text: List[constr(max_length=500, pattern=r'^[а-яА-ЯёЁa-zA-Z0-9\s]+$')]
+    answer_text: List[constr(max_length=500, pattern=r"^[а-яА-ЯёЁa-zA-Z0-9\s]+$")]
 
 
 class CreateSingleResponse(BaseModel):
@@ -221,12 +222,3 @@ class ListResponses(BaseModel):
 
     class Config:
         orm_mode = True
-
-
-
-
-
-
-
-
-

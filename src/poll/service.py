@@ -14,6 +14,11 @@ from typing import Optional
 from uuid import UUID
 
 from .schemas import QuestionType
+from api.utils.logger import PollLogger
+
+# Logging
+logger = PollLogger(__name__).get_logger()
+
 
 
 class CRUDPoll(CRUDBase[schemas.Poll, schemas.CreatePoll, schemas.UpdatePoll]):
@@ -22,7 +27,7 @@ class CRUDPoll(CRUDBase[schemas.Poll, schemas.CreatePoll, schemas.UpdatePoll]):
     def create_new_poll(self, db: Session, *, poll: schemas.CreatePoll, user_id: int):
         print(poll)
         with db.begin_nested():
-            db_poll = models.Poll(**poll.dict(exclude={'questions'}), user_id=user_id)
+            db_poll = models.Poll(**poll.dict(exclude={"questions"}), user_id=user_id)
             db.add(db_poll)
             db.flush()
             create_question(db=db, questions=poll.question, poll_id=db_poll.id)
@@ -38,7 +43,7 @@ crud_poll = CRUDPoll(models.Poll)
 
 # create new poll with questions and choices
 def create_new_poll(db: Session, poll: schemas.CreatePoll, user_id: int):
-    db_poll = models.Poll(**poll.dict(exclude={'questions'}), user_id=user_id)
+    db_poll = models.Poll(**poll.dict(exclude={"questions"}), user_id=user_id)
     db.add(db_poll)
     db.commit()
     db.refresh(db_poll)
@@ -61,23 +66,29 @@ def get_all_user_poll(db: Session, user_id: int):
 
 
 # get user polls paginated with sort by and search
-def get_user_poll_paginated(db: Session, user_id: int, sort_by: str, page: int = 1, page_size: int = 20, query: str = None):
+def get_user_poll_paginated(
+        db: Session, user_id: int, sort_by: str, page: int = 1, page_size: int = 20, query: str = None
+):
     query = query.lower() if query else None
-    if sort_by == 'created_at_asc':
+    if sort_by == "created_at_asc":
         order_by = models.Poll.created_at.asc()
-    elif sort_by == 'created_at_desc':
+    elif sort_by == "created_at_desc":
         order_by = models.Poll.created_at.desc()
-    elif sort_by == 'title':
+    elif sort_by == "title":
         order_by = models.Poll.title.asc()
     else:
-        order_by = models.Poll.created_at.desc() # default sort by created_at desc
+        order_by = models.Poll.created_at.desc()  # default sort by created_at desc
     if query:
-        polls = db.query(models.Poll).filter(models.Poll.user_id == user_id, models.Poll.title.contains(query)).order_by(order_by)
+        polls = (
+            db.query(models.Poll)
+            .filter(models.Poll.user_id == user_id, models.Poll.title.contains(query))
+            .order_by(order_by)
+        )
     else:
         polls = db.query(models.Poll).filter(models.Poll.user_id == user_id).order_by(order_by)
     polls = polls.offset((page - 1) * page_size).limit(page_size).all()
     total_polls = db.query(models.Poll).filter(models.Poll.user_id == user_id).count()
-    print(f"Total polls {total_polls}")
+    logger.info(f"Total polls {total_polls}")
     return polls, total_polls
 
 
@@ -88,8 +99,13 @@ def get_active_user_poll(db: Session, user_id: int):
 
 # get single poll with questions and choices
 def get_single_poll(db: Session, poll_id: int, user_id: int):
-    return db.query(models.Poll).options(joinedload(models.Poll.question).joinedload(models.Question.choice)).\
-        filter(models.Poll.id == poll_id).filter(models.Poll.user_id == user_id).first()
+    return (
+        db.query(models.Poll)
+        .options(joinedload(models.Poll.question)
+        .joinedload(models.Question.choice))
+        .filter(models.Poll.id == poll_id)
+        .filter(models.Poll.user_id == user_id)
+        .first())
 
 
 # get single poll with list of responses
@@ -102,15 +118,16 @@ def get_poll_detail(db: Session, poll_id: int, user_id: int):
     poll = db.query(models.Poll).filter(models.Poll.id == poll_id).filter(models.Poll.user_id == user_id).first()
     if not poll:
         raise HTTPException(status_code=404, detail="Poll not found")
-    poll_data = {"created_at": poll.created_at,
-                 "title": poll.title,
-                 "description": poll.description,
-                 "poll_cover": poll.poll_cover,
-                 "is_active": poll.is_active,
-                 "poll_url": poll.poll_url,
-                 "user_id": user_id,
-                 "question_count": db.query(models.Question).filter(models.Question.poll_id == poll_id).count()}
-    print(poll_data)
+    poll_data = {
+        "created_at": poll.created_at,
+        "title": poll.title,
+        "description": poll.description,
+        "poll_cover": poll.poll_cover,
+        "is_active": poll.is_active,
+        "poll_url": poll.poll_url,
+        "user_id": user_id,
+        "question_count": db.query(models.Question).filter(models.Question.poll_id == poll_id).count()}
+    logger.info(poll_data)
     return poll_data
 
 
@@ -121,12 +138,14 @@ def get_poll_questions_paginated(db: Session, poll_uuid: UUID, page: int = 1, pa
     if not poll:
         raise HTTPException(status_code=404, detail="Poll not found")
 
-    questions = db.query(models.Question).options(joinedload(models.Question.choice))\
-        .filter(models.Question.poll_id == poll.id)\
-        .order_by(models.Question.id)
+    questions = (
+        db.query(models.Question)
+        .options(joinedload(models.Question.choice))
+        .filter(models.Question.poll_id == poll.id)
+        .order_by(models.Question.id))
     questions = questions.offset((page - 1) * page_size).limit(page_size).all()
     total_questions = db.query(models.Question).filter(models.Question.poll_id == poll.id).count()
-    print(f"Total questions {total_questions}")
+    logger.info(f"Total questions {total_questions}")
     return questions, total_questions
 
 
@@ -137,7 +156,7 @@ def create_poll_question(db: Session, question: schemas.QuestionCreate, poll_uui
     if not poll:
         raise HTTPException(status_code=404, detail="Poll not found")
     # otherwise create question
-    #import pdb; pdb.set_trace()
+    # import pdb; pdb.set_trace()
     db_question = models.Question(**question.dict(), poll_id=poll.id)
     # add question to db
     db.add(db_question)
@@ -160,6 +179,7 @@ def create_question_choice(db: Session, choice: schemas.ChoiceCreate, question_i
     db.refresh(db_choice)
     return db_choice
 
+
 # update poll
 def update_poll(db: Session, poll_id: int, poll: schemas.UpdatePoll, user_id: int):
     db_poll = db.query(models.Poll).filter(models.Poll.id == poll_id).filter(models.Poll.user_id == user_id).first()
@@ -168,12 +188,12 @@ def update_poll(db: Session, poll_id: int, poll: schemas.UpdatePoll, user_id: in
     # otherwise update poll
     poll_data = poll.dict(exclude_unset=True)
     if poll.poll_cover is None:
-        poll_data['poll_cover'] = None
+        poll_data["poll_cover"] = None
 
     if poll.is_active:
-        poll_data['poll_url'] = f"{settings.VUE_APP_BASE_URL}/poll/{db_poll.uuid}"
+        poll_data["poll_url"] = f"{settings.VUE_APP_BASE_URL}/poll/{db_poll.uuid}"
     else:
-        poll_data['poll_url'] = None
+        poll_data["poll_url"] = None
 
     for key, value in poll_data.items():
         setattr(db_poll, key, value)
@@ -230,12 +250,9 @@ def upload_poll_cover(db: Session, file: UploadFile, poll_id: int, user_id: int)
 # QUESTIONS
 
 
-
-
 # get all questions from poll
 def get_all_poll_questions(db: Session, poll_id: int):
     return db.query(models.Question).filter(models.Question.poll_id == poll_id).all()
-
 
 
 # get all choices from question
@@ -244,10 +261,11 @@ def get_all_choices_from_question(db: Session, question_id: int):
 
 
 # create single question with  choices
-def create_single_question(db: Session,
-                           poll_id: int,
-                           question_data: schemas.QuestionCreate,
-                           ) -> models.Question:
+def create_single_question(
+        db: Session,
+        poll_id: int,
+        question_data: schemas.QuestionCreate,
+) -> models.Question:
     """" Создание вопроса с вариантами ответа
     :param db: сессия БД
     :param poll_id: id опроса
@@ -265,7 +283,7 @@ def create_single_question(db: Session,
 
 # update single question
 def update_single_question(db: Session, question_id: int, question: schemas.QuestionUpdate):
-    """ Обновление вопроса с вариантами ответа
+    """Обновление вопроса с вариантами ответа
     :param db: сессия БД
     :param question_id: id вопроса
     :param question: схема обновления
@@ -288,7 +306,7 @@ def update_single_question(db: Session, question_id: int, question: schemas.Ques
 def create_question(db: Session, questions: List[schemas.Question], poll_id: int) -> List[models.Question]:
     db_questions = []
     for question in questions:
-        db_question = models.Question(**question.dict(exclude={'choices'}), poll_id=poll_id)
+        db_question = models.Question(**question.dict(exclude={"choices"}), poll_id=poll_id)
         db.add(db_question)
         db.flush()
         db.refresh(db_question)
@@ -300,8 +318,11 @@ def create_question(db: Session, questions: List[schemas.Question], poll_id: int
 
 # get single question with choices
 def get_single_question(db: Session, question_id: int):
-    return db.query(models.Question).options(joinedload(models.Question.choice)).filter(models.Question.id ==
-                                                                                         question_id).first()
+    return (
+        db.query(models.Question)
+        .options(joinedload(models.Question.choice))
+        .filter(models.Question.id == question_id)
+        .first())
 
 # Choices
 
@@ -355,8 +376,8 @@ def create_new_response(db: Session, response_data: schemas.CreateSingleResponse
 
 def handle_single_choice_response(db, db_question: models.Question, response_data: schemas.SingleChoiceResponse):
     # single choice should have only one answer
-    #if not response_data.choice_id or len(response_data.choice_id) != 1:
-    print(response_data.choice_id)
+    # if not response_data.choice_id or len(response_data.choice_id) != 1:
+    logger.info(response_data.choice_id)
     if not response_data.choice_id:
         raise HTTPException(status_code=400, detail="Invalid answer data for single choice question")
     # check if the choice belongs to the correct question
@@ -365,7 +386,9 @@ def handle_single_choice_response(db, db_question: models.Question, response_dat
     if not db_choice:
         raise HTTPException(status_code=404, detail="Invalid choice ID for this question")
     # create a new response
-    db_response = models.Response(poll_id=db_question.poll_id, question_id=db_question.id, answer_choice=choice_id)
+    db_response = models.Response(
+        poll_id=db_question.poll_id, question_id=db_question.id, answer_choice=choice_id
+    )
     db.add(db_response)
     db.commit()
     db.refresh(db_response)
@@ -388,8 +411,8 @@ def handle_multiple_choice_response(db, question: models.Question, response_data
 
 
 def handle_free_answer_response(db, question: models.Question, response_data: schemas.MultipleTextResponse):
-    db_response = models.Response(poll_id=question.poll_id, question_id=question.id,
-                                  answer_text=response_data.answer_text)
+    db_response = models.Response(
+        poll_id=question.poll_id, question_id=question.id, answer_text=response_data.answer_text)
     db.add(db_response)
     db.commit()
     db.refresh(db_response)
@@ -397,8 +420,8 @@ def handle_free_answer_response(db, question: models.Question, response_data: sc
 
 
 def handle_free_text_response(db, question: models.Question, response_data: schemas.SingleTextResponse):
-    db_response = models.Response(poll_id=question.poll_id, question_id=question.id,
-                                  answer_text=response_data.answer_text)
+    db_response = models.Response(
+        poll_id=question.poll_id, question_id=question.id, answer_text=response_data.answer_text)
     db.add(db_response)
     db.commit()
     db.refresh(db_response)
@@ -409,21 +432,6 @@ def handle_free_text_response(db, question: models.Question, response_data: sche
 question_handlers = {
     "SINGLE ANSWER": handle_single_choice_response,
     "PLURAL ANSWER": handle_multiple_choice_response,
-    "FREE ANSWER": handle_free_answer_response, # multiple text
-    "FREE TEXT ANSWER": handle_free_text_response # single text
+    "FREE ANSWER": handle_free_answer_response,  # multiple text
+    "FREE TEXT ANSWER": handle_free_text_response  # single text
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

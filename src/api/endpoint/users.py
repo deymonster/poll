@@ -9,8 +9,7 @@ from sqlalchemy.orm import Session
 from core import config
 from utils import send_new_account_email
 from api.utils.db import get_db
-from api.utils.security import get_current_active_user, get_current_user_with_role, \
-    get_current_user
+from api.utils.security import get_current_active_user, get_current_user_with_role, get_current_user
 
 from user.models import User as DBUser, UserRole
 from user.schemas import User, UserCreate, UserUpdate
@@ -64,9 +63,7 @@ def create_user(
         )
     user = crud_user.create(db, obj_in=user_in)
     if config.EMAILS_ENABLED and user_in.email:
-        send_new_account_email(
-            email_to=user_in.email, email=user_in.email, password=user_in.password
-        )
+        send_new_account_email(email_to=user_in.email, email=user_in.email, password=user_in.password)
     return user
 
 
@@ -150,11 +147,8 @@ def create_user_open(
 
 
 @router.get("/{user_id}", response_model=User)
-def read_user_by_id(
-        user_id: int,
-        current_user: DBUser = Depends(get_current_active_user),
-        db: Session = Depends(get_db),
-):
+def read_user_by_id(user_id: int, current_user: DBUser = Depends(get_current_active_user),
+                    db: Session = Depends(get_db)):
     """
     Эндпойнт для получения пользователя по user_id
     :param user_id пользователя
@@ -170,19 +164,13 @@ def read_user_by_id(
     if user == current_user:
         return user
     if not crud_user.is_superuser(current_user):
-        raise HTTPException(
-            status_code=400, detail="The user doesn't have enough privileges"
-        )
+        raise HTTPException(status_code=400, detail="The user doesn't have enough privileges")
     return user
 
 
 @router.put("/{user_id}", response_model=User)
-def update_user(
-        *,
-        db: Session = Depends(get_db),
-        user_id: int,
-        user_in: UserUpdate,
-        current_user: User = Depends(lambda: get_current_user_with_role(UserRole.SUPERADMIN)),
+def update_user(*, db: Session = Depends(get_db), user_id: int, user_in: UserUpdate,
+                current_user: User = Depends(lambda: get_current_user_with_role(UserRole.SUPERADMIN)),
 ):
     """
     Эндпойнт для обновления данных пользователя
