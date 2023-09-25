@@ -19,6 +19,7 @@ origins = [
     "http://localhost:5173",# vue js
     "http://localhost:4000",
     "http://localhost:8000",
+    "http://localhost:9527"
 ]
 
 app.add_middleware(

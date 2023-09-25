@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 
 import jwt
 from fastapi import Depends, HTTPException, Security, Request, Response, FastAPI
@@ -114,10 +114,8 @@ def get_current_user(token: str = Depends(security), db: Session = Depends(get_d
     :return: Возвращает пользователя
     """
     try:
-        logger.info(f"Token: {token}")
-        payload = jwt.decode(token, config.SECRET_KEY, algorithms=ALGORITHM)
+        payload = jwt.decode(token, config.SECRET_KEY, algorithm=ALGORITHM)
         token_data = TokenPayload(**payload)
-        logger.info(f"token_data: {token_data.user_id}")
     except PyJWTError:
         raise HTTPException(
             status_code=HTTP_403_FORBIDDEN, detail="Could not validate credentials"
@@ -139,8 +137,12 @@ def get_current_active_user(current_user: User = Security(get_current_user)):
 
 
 # Get current user with role
-def get_current_user_with_role(current_user: User = Depends(get_current_user), required_role: UserRole = None):
-    if required_role and required_role not in current_user.roles:
+def get_current_user_with_roles(current_user: User, required_roles: List[UserRole] = None):
+    logger.info(f"Current user roles: {current_user.roles}")
+    logger.info(f"Required roles: {required_roles}")
+    if not required_roles:
+        return current_user
+    if not any(role in current_user.roles for role in map(lambda r: r.value, required_roles)):
         raise HTTPException(status_code=403, detail="The user doesn't have enough privileges")
     return current_user
 

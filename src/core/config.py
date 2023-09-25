@@ -20,10 +20,10 @@ if not SECRET_KEY:
     SECRET_KEY = os.urandom(32)
 
 # Token 60 minutes * 24 hours * 8 days = 8 days
-ACCESS_TOKEN_EXPIRE_MINUTES = 15 * 24 * 8
+ACCESS_TOKEN_EXPIRE_MINUTES = 15
 
 # Token 60 minutes * 24 hours * 14 days = 14 days
-REFRESH_TOKEN_EXPIRE_MINUTES = 60 * 24 * 14
+REFRESH_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7
 
 # CORS
 BACKEND_CORS_ORIGINS = [

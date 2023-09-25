@@ -6,19 +6,19 @@ from sqlalchemy.orm import Session, joinedload
 
 from core.local_config import settings
 from . import models, schemas
-from typing import List
+from typing import List, Union
 from base.service import CRUDBase
 from mimetypes import guess_type
 from typing import Optional
 
 from uuid import UUID
 
+from .models import PollStatus
 from .schemas import QuestionType
 from api.utils.logger import PollLogger
 
 # Logging
 logger = PollLogger(__name__).get_logger()
-
 
 
 class CRUDPoll(CRUDBase[schemas.Poll, schemas.CreatePoll, schemas.UpdatePoll]):
@@ -53,8 +53,16 @@ def create_new_poll(db: Session, poll: schemas.CreatePoll, user_id: int):
 
 # create new poll with title and description only
 def create_new_simple_poll(db: Session, poll: schemas.CreateSimplePoll, user_id: int):
-    db_poll = models.Poll(**poll.dict(), user_id=user_id)
+    """ Создание нового опроса с название и описанием
+    :param db: сессия БД
+    :param poll: схема опроса
+    :param user_id: id пользователя
+    :return: созданный опрос"""
+    db_poll = models.Poll(**poll.model_dump(), user_id=user_id)
     db.add(db_poll)
+    db.commit()
+    # change poll_url with uuid
+    db_poll.poll_url = f"/poll/{db_poll.uuid}"
     db.commit()
     db.refresh(db_poll)
     return db_poll
@@ -165,38 +173,45 @@ def create_poll_question(db: Session, question: schemas.QuestionCreate, poll_uui
     return db_question
 
 
-# add choice to question
-def create_question_choice(db: Session, choice: schemas.ChoiceCreate, question_id: int):
-    # Get the question with given id
-    question = db.query(models.Question).filter(models.Question.id == question_id).first()
-    if not question:
-        raise HTTPException(status_code=404, detail="Question not found")
-    # otherwise create choice
-    db_choice = models.Choice(**choice.dict(), question_id=question.id)
-    # add choice to db
-    db.add(db_choice)
-    db.commit()
-    db.refresh(db_choice)
-    return db_choice
-
 
 # update poll
 def update_poll(db: Session, poll_id: int, poll: schemas.UpdatePoll, user_id: int):
+    db_poll = db.query(models.Poll).options(joinedload(models.Poll.question).joinedload(models.Question.choice))\
+        .filter(models.Poll.id == poll_id).filter(models.Poll.user_id == user_id).first()
+    #db.query(models.Poll)
+        # .options(joinedload(models.Pll.question)
+        # .joinedload(models.Question.choice))
+        # .filter(models.Poll.id == poll_id)
+        # .filter(models.Poll.user_id == user_id)
+        # .first())
+    if not db_poll:
+        raise HTTPException(status_code=404, detail="Poll not found")
+    # otherwise update poll
+    poll_data = poll.model_dump(exclude_unset=True)
+    if poll.poll_cover is None:
+        poll_data["poll_cover"] = None
+    # if poll.poll_status == PollStatus.PUBLISHED:
+    #     poll_data["poll_url"] = f"{settings.VUE_APP_BASE_URL}/poll/{db_poll.uuid}"
+    # else:
+    #     poll_data["poll_url"] = None
+    for key, value in poll_data.items():
+        setattr(db_poll, key, value)
+    db.add(db_poll)
+    db.commit()
+    db.refresh(db_poll)
+    return db_poll
+
+
+# update poll status
+def update_poll_status(db: Session, poll_id: int, payload_status: schemas.PollStatusUpdate, user_id: int):
     db_poll = db.query(models.Poll).filter(models.Poll.id == poll_id).filter(models.Poll.user_id == user_id).first()
     if not db_poll:
         raise HTTPException(status_code=404, detail="Poll not found")
     # otherwise update poll
-    poll_data = poll.dict(exclude_unset=True)
-    if poll.poll_cover is None:
-        poll_data["poll_cover"] = None
-
-    if poll.is_active:
-        poll_data["poll_url"] = f"{settings.VUE_APP_BASE_URL}/poll/{db_poll.uuid}"
+    if payload_status.poll_status:
+        db_poll.poll_status = PollStatus.PUBLISHED
     else:
-        poll_data["poll_url"] = None
-
-    for key, value in poll_data.items():
-        setattr(db_poll, key, value)
+        db_poll.poll_status = PollStatus.DRAFT
     db.add(db_poll)
     db.commit()
     db.refresh(db_poll)
@@ -251,8 +266,19 @@ def upload_poll_cover(db: Session, file: UploadFile, poll_id: int, user_id: int)
 
 
 # get all questions from poll
-def get_all_poll_questions(db: Session, poll_id: int):
+def get_all_poll_questions(db: Session, poll_id: int, user_id: int):
+    db_poll = db.query(models.Poll).filter(models.Poll.id == poll_id, models.Poll.user_id == user_id).first()
+    if not db_poll:
+        raise HTTPException(status_code=404, detail="Poll not found for the user")
     return db.query(models.Question).filter(models.Question.poll_id == poll_id).all()
+
+
+# get all questions from poll by uuid
+def get_all_poll_questions_by_uuid(db: Session, poll_uuid: UUID):
+    db_poll = db.query(models.Poll).filter(models.Poll.uuid == poll_uuid).first()
+    if not db_poll:
+        raise HTTPException(status_code=404, detail="Poll not found")
+    return db.query(models.Question).filter(models.Question.poll_id == db_poll.id).all()
 
 
 # get all choices from question
@@ -264,13 +290,18 @@ def get_all_choices_from_question(db: Session, question_id: int):
 def create_single_question(
         db: Session,
         poll_id: int,
+        user_id: int,
         question_data: schemas.QuestionCreate,
 ) -> models.Question:
     """" Создание вопроса с вариантами ответа
     :param db: сессия БД
     :param poll_id: id опроса
+    :param user_id: id пользователя
     :param question_data: схема вопроса
     """
+    db_poll = db.query(models.Poll).filter(models.Poll.id == poll_id, models.Poll.user_id == user_id).first()
+    if not db_poll:
+        raise HTTPException(status_code=404, detail="Poll not found for the user")
     db_question = models.Question(**question_data.model_dump(exclude={"choice"}), poll_id=poll_id)
     db.add(db_question)
     db.flush()
@@ -282,12 +313,19 @@ def create_single_question(
 
 
 # update single question
-def update_single_question(db: Session, question_id: int, question: schemas.QuestionUpdate):
+def update_single_question(db: Session, poll_id: int, question_id: int, question: schemas.QuestionUpdate, user_id: int):
     """Обновление вопроса с вариантами ответа
     :param db: сессия БД
+    :param poll_id: id опроса
     :param question_id: id вопроса
     :param question: схема обновления
+    :param user_id: id пользователя
+    :return: обновленный вопрос
     """
+    # check if the poll exists for the user
+    db_poll = db.query(models.Poll).filter_by(id=poll_id, user_id=user_id).first()
+    if not db_poll:
+        raise HTTPException(status_code=404, detail="Poll not found for the user")
     db_question = db.query(models.Question).filter(models.Question.id == question_id).first()
     if not db_question:
         raise HTTPException(status_code=404, detail="Question not found")
@@ -353,41 +391,27 @@ def update_question(db: Session, question_id: int, question: schemas.UpdateQuest
 
 # RESPONSES
 
-# create new response
-def create_new_response(db: Session, response_data: schemas.CreateSingleResponse, poll_id: int, question_id: int):
-    print(response_data)
-    # check if the poll exists
-    db_poll = db.query(models.Poll).filter(models.Poll.id == poll_id).first()
-    if not db_poll:
-        raise HTTPException(status_code=404, detail="Poll not found")
-    # check if the question exists
-    db_question = db.query(models.Question).filter(models.Question.id == question_id).first()
-    if not db_question:
-        raise HTTPException(status_code=404, detail="Question not found")
-    # TODO with a UUID check if already answered using anonymous token
-    # Check the question type and handle the response accordingly
-    print({db_question.type})
-    question_handler = question_handlers.get(db_question.type)
-    if question_handler is None:
-        raise HTTPException(status_code=500, detail="Invalid question type")
-    db_response = question_handler(db, db_question, response_data.response)
-    return db_response
+# utility common function for creating response in db
+def create_response(db: Session,
+                    db_question: models.Question,
+                    single_choice_id=None,
+                    multiple_choice_ids=None,
+                    answer_text=None):
+    """Создание ответа на вопрос - общая функция для всех обработчиков
+    :param db: сессия БД,
+    :param poll_id: id опроса,
+    :param db_question: модель вопроса,
+    :param single_choice_id: id варианта ответа для вопроса с одним вариантом ответа,
+    :param multiple_choice_ids: id вариантов ответа для вопроса с несколькими вариантами ответа,
+    :param answer_text: текст ответа для вопроса с текстовым ответом,
+    """
 
-
-def handle_single_choice_response(db, db_question: models.Question, response_data: schemas.SingleChoiceResponse):
-    # single choice should have only one answer
-    # if not response_data.choice_id or len(response_data.choice_id) != 1:
-    logger.info(response_data.choice_id)
-    if not response_data.choice_id:
-        raise HTTPException(status_code=400, detail="Invalid answer data for single choice question")
-    # check if the choice belongs to the correct question
-    choice_id = response_data.choice_id
-    db_choice = db.query(models.Choice).filter_by(id=choice_id, question_id=db_question.id).first()
-    if not db_choice:
-        raise HTTPException(status_code=404, detail="Invalid choice ID for this question")
-    # create a new response
     db_response = models.Response(
-        poll_id=db_question.poll_id, question_id=db_question.id, answer_choice=choice_id
+        poll_id=db_question.poll_id,
+        question_id=db_question.id,
+        choice_id=single_choice_id,
+        answer_choice=multiple_choice_ids,
+        answer_text=answer_text
     )
     db.add(db_response)
     db.commit()
@@ -395,43 +419,113 @@ def handle_single_choice_response(db, db_question: models.Question, response_dat
     return db_response
 
 
-def handle_multiple_choice_response(db, question: models.Question, response_data: schemas.MultipleChoiceResponse):
-    # validate the choice ids
+# utility function for validate if a choice belongs to a question
+def validate_choice(db: Session, question_id: int, choice_id: int):
+    """Проверка принадлежности варианта ответа к вопросу
+    :param db: сессия БД,
+    :param question_id: id вопроса,
+    :param choice_id: id варианта ответа,
+    """
+    db_choice = db.query(models.Choice).filter_by(id=choice_id, question_id=question_id).first()
+
+    if not db_choice:
+        raise HTTPException(status_code=404, detail="Invalid choice ID for this question")
+    return db_choice
+
+
+# create new response for using in endpoint!!!
+def create_new_response(db: Session, poll_responses: schemas.CreatePollResponse, poll_id: int, user_id: int) -> List[models.Response]:
+    """Функция для создания ответов на все вопросы в опросе - используется в эндпойнте
+    :param db: сессия БД,
+    :param poll_responses: схема со списком ответов на вопросы опроса,
+    :param poll_id: id опроса,
+    :param user_id: id пользователя,
+    :return: список созданных ответов
+    """
+    # check if the poll exists for the user
+    db_poll = db.query(models.Poll).filter_by(id=poll_id, user_id=user_id).first()
+    if not db_poll:
+        raise HTTPException(status_code=404, detail="Poll not found for the user")
+    response_objects = []
+    # iterate over the responses and create response objects
+    # TODO with a UUID check if already answered using anonymous token
+    for single_response in poll_responses.responses:
+        db_question = db.query(models.Question).filter(models.Question.id == single_response.question_id).first()
+        if not db_question:
+            raise HTTPException(status_code=404, detail=f"Question with given ID  - {single_response.question_id} not found")
+        # Check the question type and handle the response accordingly
+        question_handler = question_handlers.get(db_question.type)
+        if question_handler is None:
+            raise HTTPException(status_code=500, detail="Invalid question type")
+        db_response = question_handler(db, db_question, single_response)
+        response_objects.append(db_response)
+    return response_objects
+
+
+def handle_single_choice_response(db, db_question: models.Question, response_data: schemas.ResponsePayload):
+    """ Обработчик ответа на вопрос с одним вариантом ответа
+    :param db: сессия БД,
+    :param db_question: модель вопроса,
+    :param response_data: общая схема для создания ответа на вопрос,"""
+    logger.info(response_data.choice_id)
+    # check that response data has only choice_id for single choice question
+    if not (response_data.choice_id or response_data.choice_ids) or response_data.choice_text or response_data.choice_texts:
+        raise HTTPException(status_code=400, detail="Invalid answer data for single choice question")
+    validate_choice(db, db_question.id, response_data.choice_id)
+    return create_response(db, db_question, single_choice_id=response_data.choice_id)
+
+
+def handle_multiple_choice_response(db, db_question: models.Question, response_data: schemas.ResponsePayload):
+    """ Обработчик ответа на вопрос с несколькими вариантами ответа
+    :param db: сессия БД,
+    :param db_question: модель вопроса,
+    :param response_data: общая схема для создания ответа на вопрос"""
+    # check that response data has only choice_ids for multiple choice question
+    if not (response_data.choice_id or response_data.choice_ids) or response_data.choice_text or response_data.choice_texts:
+        raise HTTPException(status_code=400, detail="Invalid answer data for multiple choice question")
     for choice_id in response_data.choice_ids:
-        db_choice = db.query(models.Choice).filter_by(id=choice_id, question_id=question.id).first()
-        if not db_choice:
-            raise HTTPException(status_code=404, detail="Invalid choice ID for this question")
-    # create a new response
-    db_response = models.Response(poll_id=question.poll_id, question_id=question.id,
-                                  answer_choice=response_data.choice_ids)
-    db.add(db_response)
-    db.commit()
-    db.refresh(db_response)
-    return db_response
+        validate_choice(db, db_question.id, choice_id)
+    return create_response(db, db_question, multiple_choice_ids=response_data.choice_ids)
 
 
-def handle_free_answer_response(db, question: models.Question, response_data: schemas.MultipleTextResponse):
-    db_response = models.Response(
-        poll_id=question.poll_id, question_id=question.id, answer_text=response_data.answer_text)
-    db.add(db_response)
-    db.commit()
-    db.refresh(db_response)
-    return db_response
-
-
-def handle_free_text_response(db, question: models.Question, response_data: schemas.SingleTextResponse):
-    db_response = models.Response(
-        poll_id=question.poll_id, question_id=question.id, answer_text=response_data.answer_text)
-    db.add(db_response)
-    db.commit()
-    db.refresh(db_response)
-    return db_response
+def handle_text_response(db, db_question: models.Question, response_data: schemas.ResponsePayload):
+    """ Обработчик ответа на вопрос с одним или несколькими текстовыми ответоми
+    :param db: сессия БД,
+    :param db_question: модель вопроса,
+    :param response_data: схема для создания ответа на вопрос с текстовым ответом"""
+    # check that response data has only answer_text for text question
+    if not (response_data.choice_texts or response_data.choice_text) or response_data.choice_id or response_data.choice_ids:
+        raise HTTPException(status_code=400, detail="Invalid answer data for text question")
+    return create_response(db, db_question, answer_text=response_data.choice_text or response_data.choice_texts)
 
 
 # Map question type to handler function
 question_handlers = {
     "SINGLE ANSWER": handle_single_choice_response,
     "PLURAL ANSWER": handle_multiple_choice_response,
-    "FREE ANSWER": handle_free_answer_response,  # multiple text
-    "FREE TEXT ANSWER": handle_free_text_response  # single text
+    "FREE ANSWER": handle_text_response,  # multiple text
+    "FREE TEXT ANSWER": handle_text_response  # single text
 }
+
+
+# delete question from the user poll
+def delete_question(db: Session, poll_id: int, question_id: int, user_id: int):
+    # check that question is belong to user
+    db_poll = db.query(models.Poll).filter(models.Poll.id == poll_id).filter(models.Poll.user_id == user_id).first()
+    if not db_poll:
+        raise HTTPException(status_code=404, detail="Poll not found")
+    # check that question is belong to poll
+    db_question = db.query(models.Question).filter(models.Question.id == question_id).filter(models.Question.poll_id == poll_id).first()
+    if not db_question:
+        raise HTTPException(status_code=404, detail="Question not found")
+    db.delete(db_question)
+    db.commit()
+    return db_question
+
+
+# get all responses from poll
+def get_all_poll_responses(db: Session, poll_id: int, user_id: int):
+    db_poll = db.query(models.Poll).filter(models.Poll.id == poll_id).filter(models.Poll.user_id == user_id).first()
+    if not db_poll:
+        raise HTTPException(status_code=404, detail="Poll not found")
+    return db.query(models.Response).filter(models.Response.poll_id == poll_id).all()

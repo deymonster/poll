@@ -42,6 +42,14 @@ class QuestionType(str, Enum):
     FREE_TEXT = "FREE TEXT ANSWER"
 
 
+class StatusPoll(str, Enum):
+    DRAFT = 'DRAFT'
+    PUBLISHED = 'PUBLISHED'
+    CLOSED = 'CLOSED'
+    ENDED = 'ENDED'
+    ARCHIVED = 'ARCHIVED'
+
+
 class QuestionBase(BaseModel):
     """Base model schemas question"""
 
@@ -76,7 +84,7 @@ class QuestionCreate(BaseModel):
     question_cover: Optional[str] = None
     option_pass: Optional[bool] = True
     option_other_answer: Optional[bool] = True
-    choice: Optional[List[ChoiceCreate]] = []
+    choice: List[ChoiceCreate]
 
 
 # schema for updating Question
@@ -85,7 +93,7 @@ class QuestionUpdate(BaseModel):
     question_cover: Optional[str] = None
     option_pass: Optional[bool] = True
     option_other_answer: Optional[bool] = True
-    choice: Optional[List[ChoiceUpdate]] = []
+    choice: List[ChoiceUpdate]
 
     class Config:
         orm_mode = True
@@ -117,7 +125,7 @@ class PollBase(BaseModel):
     title: str
     description: Optional[str] = None
     poll_cover: Optional[str] = None
-    is_active: bool = False
+    status_poll: StatusPoll = StatusPoll.DRAFT
     poll_url: Optional[str] = None
     user_id: int
 
@@ -151,7 +159,11 @@ class UpdatePoll(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     poll_cover: Optional[str] = None
-    is_active: bool = False
+    poll_status: StatusPoll = StatusPoll.DRAFT
+
+
+class PollStatusUpdate(BaseModel):
+    poll_status: bool = False
 
 
 class ListPoll(Poll):
@@ -197,23 +209,40 @@ class DeletePoll(Poll):
 
 
 class SingleChoiceResponse(BaseModel):
+    question_id: int
     choice_id: int
 
 
 class MultipleChoiceResponse(BaseModel):
+    question_id: int
     choice_ids: List[int]
+    choice_text: Optional[str] = None
 
 
 class SingleTextResponse(BaseModel):
+    question_id: int
     answer_text: constr(max_length=500, pattern=r"^[а-яА-ЯёЁa-zA-Z0-9\s]+$")
 
 
 class MultipleTextResponse(BaseModel):
+    question_id: int
     answer_text: List[constr(max_length=500, pattern=r"^[а-яА-ЯёЁa-zA-Z0-9\s]+$")]
 
 
 class CreateSingleResponse(BaseModel):
     response: Union[SingleChoiceResponse, MultipleChoiceResponse, SingleTextResponse, MultipleTextResponse]
+
+
+class ResponsePayload(BaseModel):
+    question_id: int
+    choice_id: Optional[int] = None
+    choice_ids: Optional[List[int]] = None
+    choice_text: Optional[str] = None
+    choice_texts: Optional[Union[str, List[str]]] = None
+
+
+class CreatePollResponse(BaseModel):
+    responses: List[ResponsePayload]
 
 
 class ListResponses(BaseModel):

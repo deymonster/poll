@@ -102,7 +102,6 @@ def login_refresh_token_vue(token_data: RefreshToken, db: Session = Depends(get_
     try:
         refresh_token = token_data.refresh_token
         payload = jwt.decode(refresh_token, config.SECRET_KEY, algorithms=[ALGORITHM])
-        print(f"Token payload: {payload}")
         user_id: str = payload.get("user_id")
         if user_id is None:
             raise credentials_exception
@@ -131,7 +130,7 @@ def test_token(current_user: DBUser = Depends(get_current_user)):
 
 
 @router.post("/password-recovery/{email}", response_model=Msg)
-def recover_password(request: Request,backgroud_tasks: BackgroundTasks, email: str, db: Session = Depends(get_db)):
+def recover_password(request: Request, backgroud_tasks: BackgroundTasks, email: str, db: Session = Depends(get_db)):
 
     """
     Эндпойнт для сброса пароля
@@ -163,7 +162,7 @@ def recover_password(request: Request,backgroud_tasks: BackgroundTasks, email: s
     return {"msg": "Password recovery email sent"}
 
 
-# endpoint for vefication reset token
+# endpoint for verification reset token
 @router.get("/reset-password/verify", response_model=Msg)
 def reset_password_verify_token(token: str = Body(...), db: Session = Depends(get_db)):
     email = verify_password_reset_token(token)
@@ -205,6 +204,6 @@ def reset_password(token: str = Body(...), new_password: str = Body(...), db: Se
     db.commit()
     return {"msg": "Password updated successfully"}
 
-# TODO сделать эндпойты для регистрации пользователей с отправкой ccылки для установки пароля полльвателем
+
 
 

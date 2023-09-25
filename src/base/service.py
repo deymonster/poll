@@ -1,10 +1,12 @@
 from typing import List, Optional, Generic, TypeVar, Type
 
+from fastapi import HTTPException
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from db.base_class import Base
+from user.models import User, UserRole
 
 ModelType = TypeVar("ModelType", bound=Base)
 CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
@@ -54,3 +56,6 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
         db_session.delete(obj)
         db_session.commit()
         return obj
+
+
+

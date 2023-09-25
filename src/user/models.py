@@ -1,9 +1,10 @@
-from sqlalchemy import Boolean, Column, Integer, String, ARRAY
+from sqlalchemy import Boolean, Column, Integer, String, ARRAY, ForeignKey
 from sqlalchemy.orm import relationship
 import uuid
 from db.base_class import Base
 from sqlalchemy.dialects.postgresql import UUID
 from enum import Enum
+from company.models import Company
 
 
 class UserRole(str, Enum):
@@ -21,6 +22,8 @@ class User(Base):
     is_active = Column(Boolean(), default=True)
     polls = relationship("Poll", back_populates="user")
     _roles = Column("roles", String, default=UserRole.USER.value)
+    company_id = Column(Integer, ForeignKey("company.id"), nullable=True)
+    company = relationship(Company, back_populates="users")
 
     @property
     def roles(self):

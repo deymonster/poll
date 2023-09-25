@@ -1,13 +1,20 @@
 from typing import Optional, List
-from pydantic import BaseModel, constr
+from pydantic import BaseModel, EmailStr
 import uuid
+from enum import Enum
+
+
+class Roles(str, Enum):
+    SUPERADMIN = "superadmin"
+    ADMIN = "admin"
+    USER = "user"
 
 
 class UserBase(BaseModel):
-    email: Optional[str] = None
+    email: EmailStr
     is_active: Optional[bool] = False
     full_name: Optional[str] = None
-    roles: Optional[List[str]] = []
+    roles: List[str] = []
 
     class Config:
         orm_mode = True
@@ -18,8 +25,7 @@ class UserBaseInDB(UserBase):
 
 
 class UserCreate(UserBase):
-    email: str
-    password: str
+    pass
 
 
 class UserCreateByEmail(UserBase):
@@ -36,4 +42,16 @@ class User(UserBaseInDB):
 
 class UserInDB(UserBaseInDB):
     hashed_password: str
+
+
+class TokenData(BaseModel):
+    token: str
+
+
+class RegistrationCompletion(BaseModel):
+    token: str
+    password: str
+    company_id: int
+    full_name: Optional[str] = None
+
 
