@@ -132,11 +132,20 @@ def send_new_account_complete_registration_email(email_to: str, email: str, full
         },
     )
 
+
 # generate registration token
 def generate_registration_token(email: str, roles: List[UserRole]) -> str:
+    """
+    Генерация токена при регистрации пользователя
+
+    :param email: email пользователя
+    :param roles: список ролей пользователя
+    :return: токен
+    """
     data = {
         "sub": email,
         "roles": roles,
+        "exp": datetime.utcnow() + timedelta(hours=config.EMAIL_REGISTER_TOKEN_EXPIRE_HOURS),
     }
     encoded_jwt = jwt.encode(data, config.SECRET_KEY, algorithm="HS256")
     return encoded_jwt

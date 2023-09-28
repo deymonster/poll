@@ -21,6 +21,7 @@ from api.utils.logger import PollLogger
 logger = PollLogger(__name__).get_logger()
 
 
+# TODO доделать класс CRUDBase для Poll
 class CRUDPoll(CRUDBase[schemas.Poll, schemas.CreatePoll, schemas.UpdatePoll]):
     # create new poll with questions
 
@@ -43,7 +44,15 @@ crud_poll = CRUDPoll(models.Poll)
 
 # create new poll with questions and choices
 def create_new_poll(db: Session, poll: schemas.CreatePoll, user_id: int):
-    db_poll = models.Poll(**poll.dict(exclude={"questions"}), user_id=user_id)
+    """
+    Создание нового опроса с вопросами и вариантами ответа
+
+    :param db: Session
+    :param poll: schemas.CreatePoll
+    :param user_id: int
+    :return: Model Poll
+    """
+    db_poll = models.Poll(**poll.model_dump(exclude={"questions"}), user_id=user_id)
     db.add(db_poll)
     db.commit()
     db.refresh(db_poll)
@@ -53,11 +62,14 @@ def create_new_poll(db: Session, poll: schemas.CreatePoll, user_id: int):
 
 # create new poll with title and description only
 def create_new_simple_poll(db: Session, poll: schemas.CreateSimplePoll, user_id: int):
-    """ Создание нового опроса с название и описанием
+    """
+    Создание нового опроса с название и описанием
+
     :param db: сессия БД
     :param poll: схема опроса
     :param user_id: id пользователя
-    :return: созданный опрос"""
+    :return: созданный опрос
+    """
     db_poll = models.Poll(**poll.model_dump(), user_id=user_id)
     db.add(db_poll)
     db.commit()
@@ -69,40 +81,48 @@ def create_new_simple_poll(db: Session, poll: schemas.CreateSimplePoll, user_id:
 
 
 # get all user polls
-def get_all_user_poll(db: Session, user_id: int):
-    return db.query(models.Poll).filter(models.Poll.user_id == user_id).all()
+def get_all_user_poll(db: Session, user_id: int, status: Optional[PollStatus] = None):
+    """
+    Получаем все опросы пользователя
+
+    :param db: Session
+    :param user_id: int
+    :param status: PollStatus (optional)
+    :return: List[Model Poll]
+    """
+    query = db.query(models.Poll).filter(models.Poll.user_id == user_id)
+    if status:
+        query = query.filter(models.Poll.poll_status == status)
+    return query.all()
+
+#
+# # get user polls paginated with sort by and search
+# def get_user_poll_paginated(
+#         db: Session, user_id: int, sort_by: str, page: int = 1, page_size: int = 20, query: str = None
+# ):
+#     query = query.lower() if query else None
+#     if sort_by == "created_at_asc":
+#         order_by = models.Poll.created_at.asc()
+#     elif sort_by == "created_at_desc":
+#         order_by = models.Poll.created_at.desc()
+#     elif sort_by == "title":
+#         order_by = models.Poll.title.asc()
+#     else:
+#         order_by = models.Poll.created_at.desc()  # default sort by created_at desc
+#     if query:
+#         polls = (
+#             db.query(models.Poll)
+#             .filter(models.Poll.user_id == user_id, models.Poll.title.contains(query))
+#             .order_by(order_by)
+#         )
+#     else:
+#         polls = db.query(models.Poll).filter(models.Poll.user_id == user_id).order_by(order_by)
+#     polls = polls.offset((page - 1) * page_size).limit(page_size).all()
+#     total_polls = db.query(models.Poll).filter(models.Poll.user_id == user_id).count()
+#     logger.info(f"Total polls {total_polls}")
+#     return polls, total_polls
 
 
-# get user polls paginated with sort by and search
-def get_user_poll_paginated(
-        db: Session, user_id: int, sort_by: str, page: int = 1, page_size: int = 20, query: str = None
-):
-    query = query.lower() if query else None
-    if sort_by == "created_at_asc":
-        order_by = models.Poll.created_at.asc()
-    elif sort_by == "created_at_desc":
-        order_by = models.Poll.created_at.desc()
-    elif sort_by == "title":
-        order_by = models.Poll.title.asc()
-    else:
-        order_by = models.Poll.created_at.desc()  # default sort by created_at desc
-    if query:
-        polls = (
-            db.query(models.Poll)
-            .filter(models.Poll.user_id == user_id, models.Poll.title.contains(query))
-            .order_by(order_by)
-        )
-    else:
-        polls = db.query(models.Poll).filter(models.Poll.user_id == user_id).order_by(order_by)
-    polls = polls.offset((page - 1) * page_size).limit(page_size).all()
-    total_polls = db.query(models.Poll).filter(models.Poll.user_id == user_id).count()
-    logger.info(f"Total polls {total_polls}")
-    return polls, total_polls
-
-
-# get all active user polls
-def get_active_user_poll(db: Session, user_id: int):
-    return db.query(models.Poll).filter(models.Poll.user_id == user_id, models.Poll.is_active == True).all()
 
 
 # get single poll with questions and choices

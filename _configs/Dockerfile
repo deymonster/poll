@@ -1,4 +1,4 @@
-FROM            python:3.10-slim
+FROM            python:3.11-slim
 
 ENV             PYTHONBUFFERED=1
 ENV             LANGUAGE en_US.UTF-8

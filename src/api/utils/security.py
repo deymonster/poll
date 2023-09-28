@@ -138,8 +138,6 @@ def get_current_active_user(current_user: User = Security(get_current_user)):
 
 # Get current user with role
 def get_current_user_with_roles(current_user: User, required_roles: List[UserRole] = None):
-    logger.info(f"Current user roles: {current_user.roles}")
-    logger.info(f"Required roles: {required_roles}")
     if not required_roles:
         return current_user
     if not any(role in current_user.roles for role in map(lambda r: r.value, required_roles)):

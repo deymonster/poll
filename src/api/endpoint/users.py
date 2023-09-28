@@ -18,8 +18,8 @@ from api.utils.db import get_db
 from api.utils.security import get_current_active_user, get_current_user_with_roles, get_current_user
 
 from user.models import User as DBUser, UserRole
-from user.schemas import User, UserCreate, UserUpdate, TokenData, RegistrationCompletion
-from user.service import crud_user, check_license_limit
+from user.schemas import User, UserCreate, UserUpdate, TokenData, RegistrationCompletion, UserCreateByEmail
+from user.service import crud_user
 from fastapi import BackgroundTasks
 from api.utils.logger import PollLogger
 
@@ -57,7 +57,7 @@ def pre_register_user(
         *,
         request: Request,
         db: Session = Depends(get_db),
-        user_in: UserCreate,
+        user_in: UserCreateByEmail,
         background_tasks: BackgroundTasks,
         current_user: User = Depends(get_current_active_user)
 ):
@@ -71,13 +71,6 @@ def pre_register_user(
     :param current_user: Текущий пользователь с любой ролью
     :return: Сообщение об успешной предварительной регистрации
 
-    1. Проверяем роль пользователя - передаем список ролей
-    2. Проверяем, существует ли пользователь с таким же email
-    3. Если пользователь существует, то возвращаем ошибку
-    4. Если роль пользователя ADMIN то роль пользователя будет всего USER
-    5. Если пользователь не существует, то создаем токен с ролями
-    6. Отправляем ему письмо с ссылкой для завершения регистрации
-
     Пример схемы для регистрации пользователя
     {
     "email": "popov@nitshop.ru",
@@ -87,33 +80,16 @@ def pre_register_user(
     """
     # restrict access for superadmin and admin
     get_current_user_with_roles(current_user, required_roles=[UserRole.SUPERADMIN, UserRole.ADMIN])
-    # check if user with this email exists
-    if crud_user.get_by_email(db, email=user_in.email):
-        raise HTTPException(
-            status_code=409,
-            detail="The user with this username already exists in the system.",
-        )
-    # if in current_user role is ADMIN then set role USER for new user
-    if UserRole.ADMIN in current_user.roles:
-        user_in.roles = [UserRole.USER]
-        # check count of licenses
-        if not check_license_limit(db, current_user.company_id):
-            raise HTTPException(
-                status_code=400,
-                detail="The limit of licenses is exceeded",
-            )
-    # create registration token
-    registration_token = generate_registration_token(email=user_in.email, roles=user_in.roles)
-    referer = request.headers.get("Referer")
-    frontend_url = f"{urlparse(referer).scheme}://{urlparse(referer).netloc}"
-    logger.info(f"Reset token {registration_token}")
-    # send email with registration link in background
-    background_tasks.add_task(send_new_account_email,
-                              email_to=user_in.email,
-                              email=user_in.email,
-                              link=frontend_url,
-                              token=registration_token)
-    return {"msg": "Registration email sent to user"}
+
+    try:
+        crud_user.register_user(db_session=db,
+                                request=request,
+                                current_user=current_user,
+                                obj_in=user_in,
+                                background_tasks=background_tasks)
+        return JSONResponse(status_code=201, content={"message": "Email was sent to user"})
+    except HTTPException as e:
+        return JSONResponse(status_code=e.status_code, content={"message": e.detail})
 
 
 # endpoint for verification registration token
@@ -250,9 +226,13 @@ def update_user_me(
     """
     if not user_id:
         user_id = current_user.id
-    user_to_update = crud_user.get_or_404(db, id=user_id, current_user=current_user)
-    crud_user.update(db, current_user=current_user, db_obj=user_to_update, update_data=user_in)
-    return JSONResponse(status_code=201, content={"message": "User updated successfully"})
+    user_to_update = crud_user.get_or_404(db, user_id=user_id, current_user=current_user)
+    try:
+        crud_user.update(db, current_user=current_user, db_obj=user_to_update, update_data=user_in)
+        return JSONResponse(status_code=201, content={"message": "User updated successfully"})
+    except HTTPException as e:
+        return JSONResponse(status_code=e.status_code, content={"message": e.detail})
+
 
 
 @router.get("/me", response_model=User)

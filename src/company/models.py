@@ -3,7 +3,7 @@ from enum import Enum
 from sqlalchemy.dialects.postgresql import ENUM, UUID
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, DateTime, JSON
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 class Company(Base):
@@ -23,3 +23,18 @@ class Company(Base):
     subscription_start = Column(DateTime, nullable=True, comment="Дата начала подписки")
     subscription_end = Column(DateTime, nullable=True, comment="Дата окончания подписки")
     subscription_active = Column(Boolean, default=True, comment="Статус подписки")
+    invitations = relationship("Invitations", back_populates="company")
+
+
+class Invitations(Base):
+    """
+    Model invitations
+
+    """
+    id: int = Column(Integer, primary_key=True, index=True)
+    company_id: int = Column(Integer, ForeignKey('company.id'))
+    email: str = Column(String, index=True)
+    expires_at: datetime = Column(DateTime, default=datetime.utcnow() + timedelta(hours=48))
+    token: str = Column(String, unique=True)
+    company = relationship("Company", back_populates="invitations")
+

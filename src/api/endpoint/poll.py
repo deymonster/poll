@@ -39,7 +39,8 @@ templates = Jinja2Templates(directory='templates')
 @router.get("/user_polls", response_model=List[schemas.Poll])
 def user_polls(db: Session = Depends(get_db), user: User = Depends(get_current_active_user)):
     """
-    Эндпоинт для получения списка опросов пользователя со статусом "Активен"
+    Эндпоинт для получения списка опросов пользователя
+
     :param db: Сессия базы данных
     :param user: Текущий пользователь со статусом "Активен"
     :return: Список опросов пользователя
@@ -56,7 +57,9 @@ def user_polls(db: Session = Depends(get_db), user: User = Depends(get_current_a
 def create_poll(
         poll_data: schemas.CreateSimplePoll, db: Session = Depends(get_db), user: User = Depends(get_current_active_user)
 ):
-    """ Эндпоинт для создания нового опроса c названием пользователем
+    """
+    Эндпоинт для создания нового опроса c названием пользователем
+
     :param poll_data: Данные опроса -  название и описание
     :param db: Сессия базы данных
     :param user: Текущий активнеы пользователь
@@ -77,15 +80,17 @@ def update_poll(poll_id: int,
                 user: User = Depends(get_current_active_user)):
     """
     Эндпойнт для обновления опроса пользователем
+
     :param poll_id: Идентификатор опроса
     :param poll_data Данные для обновления опроса
     :param db: Сессия базы данных
     :param user: Текущий активный пользователь
-    :return msg Сообщение об  успешном удалении опроса"""
+    :return msg Сообщение об  успешном удалении опроса
+    """
     try:
         poll = service.update_poll(db=db, poll_id=poll_id, poll=poll_data, user_id=user.id)
         if poll:
-            JSONResponse(status_code=201, content={"message": "User updated successfully"})
+            return JSONResponse(status_code=201, content={"message": "Poll updated successfully"})
     except Exception as e:
         raise HTTPException(status_code=500, detail="Errors while updating poll")
 
@@ -96,10 +101,18 @@ def change_poll_status(poll_id: int,
                        payload_status: schemas.PollStatusUpdate,
                        db: Session = Depends(get_db),
                        user: User = Depends(get_current_active_user)):
-    """Эндпойнт для изменения статуса опроса пользователем"""
+    """
+    Эндпойнт для изменения статуса опроса пользователем
+
+    :param poll_id: Идентификатор опроса
+    :param payload_status: Схема для обновления статуса опроса
+    :param db: Сессия базы данных
+    :param user: Текущий активный пользователь
+
+    """
     poll = service.update_poll_status(db=db, poll_id=poll_id, payload_status=payload_status, user_id=user.id)
     if poll:
-        JSONResponse(status_code=201, content={"message": "User updated successfully"})
+        return JSONResponse(status_code=201, content={"message": "Poll updated successfully"})
     else:
         raise HTTPException(status_code=500, detail="Errors while updating poll status")
 

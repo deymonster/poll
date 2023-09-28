@@ -8,13 +8,18 @@ from company.models import Company
 
 
 class UserRole(str, Enum):
+    """
+    User roles
+    """
     SUPERADMIN = "superadmin"
     ADMIN = "admin"
     USER = "user"
 
 
 class User(Base):
-    """ Model User """
+    """
+    Model User
+    """
     id = Column(Integer, primary_key=True, index=True)
     full_name = Column(String, index=True)
     email = Column(String, unique=True, index=True)
