@@ -9,6 +9,7 @@ from emails.template import JinjaTemplate
 from jwt.exceptions import InvalidTokenError
 
 from core import config
+from core.exceptions import TokenExpiredError, CustomInvalidTokenError
 from user.models import UserRole
 from api.utils.logger import PollLogger
 
@@ -134,35 +135,42 @@ def send_new_account_complete_registration_email(email_to: str, email: str, full
 
 
 # generate registration token
-def generate_registration_token(email: str, roles: List[UserRole]) -> str:
+def generate_registration_token(email: str, roles: List[UserRole], admin: str) -> str:
     """
     Генерация токена при регистрации пользователя
 
     :param email: email пользователя
     :param roles: список ролей пользователя
+    :param admin: email администратора
     :return: токен
     """
     data = {
         "sub": email,
         "roles": roles,
+        "admin_email": admin,
         "exp": datetime.utcnow() + timedelta(hours=config.EMAIL_REGISTER_TOKEN_EXPIRE_HOURS),
+        # "exp": datetime.utcnow() + timedelta(minutes=1), # expiration time for testing
+
     }
     encoded_jwt = jwt.encode(data, config.SECRET_KEY, algorithm="HS256")
     return encoded_jwt
 
 
 # verify registration token
-def verify_registration_token(token: str) -> Union[Tuple[str, List[str]], ValueError]:
+def verify_registration_token(token: str) -> Tuple[str, List[str], str]:
     """ Проверка токена регистрации на валидность"""
     try:
         decoded_token = jwt.decode(token, config.SECRET_KEY, algorithm="HS256")
         email = decoded_token["sub"]
         roles = decoded_token["roles"]
-        return email, roles
+        admin_email = decoded_token["admin_email"]
+        return email, roles, admin_email
     except jwt.ExpiredSignatureError:
-        return ValueError("Token expired")
-    except InvalidTokenError:
-        return ValueError("Invalid token")
+        decoded_token = jwt.decode(token, config.SECRET_KEY, algorithms=["HS256"], options={"verify_exp": False})
+        admin_email = decoded_token.get("admin_email", "Unknown admin")
+        raise TokenExpiredError(f"Token expired. Please request a new one from {admin_email}")
+    except jwt.InvalidTokenError:
+        raise CustomInvalidTokenError("Invalid token")
 
 
 def verify_password_reset_token(token: str) -> Optional[str]:

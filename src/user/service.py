@@ -14,6 +14,7 @@ from user.schemas import UserCreate, UserUpdate, UserCreateByEmail
 from api.utils.logger import PollLogger
 from utils import generate_registration_token, send_new_account_email
 
+
 # Logging
 logger = PollLogger(__name__).get_logger()
 
@@ -236,7 +237,9 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
                 obj_in.roles = [UserRole.USER]
             case _:
                 raise HTTPException(status_code=403, detail="Unknown user role")
-        registration_token = generate_registration_token(email=obj_in.email, roles=obj_in.roles)
+        registration_token = generate_registration_token(email=obj_in.email,
+                                                         roles=obj_in.roles,
+                                                         admin=current_user.email)
         add_invitation(db=db_session, email=obj_in.email, token=registration_token, company_id=current_user.company_id)
         referer = request.headers.get("Referer")
         frontend_url = f"{urlparse(referer).scheme}://{urlparse(referer).netloc}"

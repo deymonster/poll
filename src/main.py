@@ -7,6 +7,7 @@ from api import routers
 from db.session import SessionLocal, db_session
 from fastapi.staticfiles import StaticFiles
 from api.utils.security import create_initial_user
+from company.scheduler import scheduler
 
 
 app = FastAPI(
@@ -52,6 +53,9 @@ async def db_session_middleware(request: Request, call_next):
 @app.on_event("startup")
 async def startup_event():
     create_initial_user(db=db_session())
+    if not scheduler.running:
+        scheduler.start()
+
 
 app.include_router(routers.api_router, prefix="/api")
 

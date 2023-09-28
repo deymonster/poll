@@ -22,6 +22,7 @@ from user.schemas import User, UserCreate, UserUpdate, TokenData, RegistrationCo
 from user.service import crud_user
 from fastapi import BackgroundTasks
 from api.utils.logger import PollLogger
+from core.exceptions import TokenError, TokenExpiredError, CustomInvalidTokenError
 
 # Logging
 logger = PollLogger(__name__).get_logger()
@@ -104,10 +105,13 @@ def verify_token(token_data: TokenData):
     "token": "{token}"
     }
     """
-    result = verify_registration_token(token_data.token)
-    if isinstance(result, ValueError):
-        raise HTTPException(status_code=400, detail=str(result))
-    return {"msg": "Token is valid"}
+    try:
+        email, roles, admin_email = verify_registration_token(token_data.token)
+        return {"msg": "Token is valid"}
+    except TokenExpiredError as e:
+        return JSONResponse(status_code=400, content={"message": str(e)})
+    except CustomInvalidTokenError as e:
+        return JSONResponse(status_code=400, content={"message": str(e)})
 
 
 # endpoint for complete registration with token and password
@@ -139,7 +143,7 @@ def complete_registration(data: RegistrationCompletion,
     "full_name": "Петрова Анна Юрьевна"
     }
     """
-    email, roles = verify_registration_token(data.token)
+    email, roles, admin_email = verify_registration_token(data.token)
     if crud_user.get_by_email(db, email=email):
         raise HTTPException(
             status_code=409,

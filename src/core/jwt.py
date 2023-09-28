@@ -37,7 +37,6 @@ def create_refresh_token(*, data: dict, user_id: str, expire_delta: timedelta = 
     encoded_jwt = jwt.encode(to_encode, config.SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt.decode()
 
-#
 
 def create_anonymous_user_token():
     data = {
