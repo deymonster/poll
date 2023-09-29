@@ -247,6 +247,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         # send email with registration link in background
         background_tasks.add_task(send_new_account_email,
                                   email_to=obj_in.email,
+                                  full_name=obj_in.full_name,
                                   email=obj_in.email,
                                   link=frontend_url,
                                   token=registration_token)

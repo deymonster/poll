@@ -381,5 +381,18 @@ def get_poll_responses(poll_id: int, db: Session = Depends(get_db), user: User =
     return responses
 
 
+# endpoint for getting report from respnonses
+@router.get("/user_polls/{poll_id}/report")
+def get_poll_report(poll_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_active_user)):
+    """Эндпоинт для получения отчета по опросу
+
+    :param poll_id: Идентификатор опроса
+    :param db: Сессия базы данных
+    :param user: Текущий активный пользователь
+    :return: Отчет по опросу"""
+    report = service.get_poll_report(db=db, poll_id=poll_id)
+    return report
+
+
 
 

@@ -2,6 +2,7 @@ import shutil
 
 from fastapi import HTTPException, UploadFile
 from fastapi.encoders import jsonable_encoder
+from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from core.local_config import settings
@@ -13,7 +14,7 @@ from typing import Optional
 
 from uuid import UUID
 
-from .models import PollStatus
+from .models import PollStatus, Response
 from .schemas import QuestionType
 from api.utils.logger import PollLogger
 
@@ -193,9 +194,17 @@ def create_poll_question(db: Session, question: schemas.QuestionCreate, poll_uui
     return db_question
 
 
-
-# update poll
 def update_poll(db: Session, poll_id: int, poll: schemas.UpdatePoll, user_id: int):
+    """"
+    Обновление опроса
+
+    :param db: сессия БД
+    :param poll_id: id опроса
+    :param poll: схема обновления
+    :param user_id: id пользователя
+    :return: обновленный опрос
+
+    """
     db_poll = db.query(models.Poll).options(joinedload(models.Poll.question).joinedload(models.Question.choice))\
         .filter(models.Poll.id == poll_id).filter(models.Poll.user_id == user_id).first()
     #db.query(models.Poll)
@@ -224,6 +233,15 @@ def update_poll(db: Session, poll_id: int, poll: schemas.UpdatePoll, user_id: in
 
 # update poll status
 def update_poll_status(db: Session, poll_id: int, payload_status: schemas.PollStatusUpdate, user_id: int):
+    """
+    Обновление статуса опроса
+
+    :param db:
+    :param poll_id:
+    :param payload_status:
+    :param user_id:
+    :return: db_poll
+    """
     db_poll = db.query(models.Poll).filter(models.Poll.id == poll_id).filter(models.Poll.user_id == user_id).first()
     if not db_poll:
         raise HTTPException(status_code=404, detail="Poll not found")
@@ -240,6 +258,13 @@ def update_poll_status(db: Session, poll_id: int, payload_status: schemas.PollSt
 
 # query to delete poll by id
 def delete_poll(db: Session, poll_id: int):
+    """"
+    Удаление опроса
+
+    :param db: сессия БД
+    :param poll_id: id опроса
+    :return: удаленный опрос
+    """
     db_poll = db.query(models.Poll).filter(models.Poll.id == poll_id).first()
     if not db_poll:
         raise HTTPException(status_code=404, detail="Poll not found")
@@ -250,6 +275,14 @@ def delete_poll(db: Session, poll_id: int):
 
 # query to delete poll by id and user_id
 def delete_poll_by_user(db: Session, poll_id: int, user_id: int):
+    """
+    Удаление опроса
+
+    :param db:
+    :param poll_id:
+    :param user_id:
+    :return: db_poll
+    """
     db_poll = db.query(models.Poll).filter(models.Poll.id == poll_id).filter(models.Poll.user_id == user_id).first()
     if not db_poll:
         raise HTTPException(status_code=404, detail="Poll not found")
@@ -287,6 +320,14 @@ def upload_poll_cover(db: Session, file: UploadFile, poll_id: int, user_id: int)
 
 # get all questions from poll
 def get_all_poll_questions(db: Session, poll_id: int, user_id: int):
+    """
+    Получение всех вопросов опроса
+
+    :param db: сессия БД
+    :param poll_id: id опроса
+    :param user_id: id пользователя
+    :return: список вопросов
+    """
     db_poll = db.query(models.Poll).filter(models.Poll.id == poll_id, models.Poll.user_id == user_id).first()
     if not db_poll:
         raise HTTPException(status_code=404, detail="Poll not found for the user")
@@ -295,6 +336,14 @@ def get_all_poll_questions(db: Session, poll_id: int, user_id: int):
 
 # get all questions from poll by uuid
 def get_all_poll_questions_by_uuid(db: Session, poll_uuid: UUID):
+    """"
+    Получение всех вопросов опроса по uuid
+
+    :param db: сессия БД
+    :param poll_uuid: UUID опроса
+    :return список вопросов
+
+    """
     db_poll = db.query(models.Poll).filter(models.Poll.uuid == poll_uuid).first()
     if not db_poll:
         raise HTTPException(status_code=404, detail="Poll not found")
@@ -313,11 +362,14 @@ def create_single_question(
         user_id: int,
         question_data: schemas.QuestionCreate,
 ) -> models.Question:
-    """" Создание вопроса с вариантами ответа
+    """"
+    Создание вопроса с вариантами ответа
+
     :param db: сессия БД
     :param poll_id: id опроса
     :param user_id: id пользователя
     :param question_data: схема вопроса
+    :return db_question: Вопрос
     """
     db_poll = db.query(models.Poll).filter(models.Poll.id == poll_id, models.Poll.user_id == user_id).first()
     if not db_poll:
@@ -334,7 +386,9 @@ def create_single_question(
 
 # update single question
 def update_single_question(db: Session, poll_id: int, question_id: int, question: schemas.QuestionUpdate, user_id: int):
-    """Обновление вопроса с вариантами ответа
+    """
+    Обновление вопроса с вариантами ответа
+
     :param db: сессия БД
     :param poll_id: id опроса
     :param question_id: id вопроса
@@ -441,10 +495,13 @@ def create_response(db: Session,
 
 # utility function for validate if a choice belongs to a question
 def validate_choice(db: Session, question_id: int, choice_id: int):
-    """Проверка принадлежности варианта ответа к вопросу
+    """
+    Проверка принадлежности варианта ответа к вопросу
+
     :param db: сессия БД,
     :param question_id: id вопроса,
     :param choice_id: id варианта ответа,
+    :return db_choice
     """
     db_choice = db.query(models.Choice).filter_by(id=choice_id, question_id=question_id).first()
 
@@ -455,7 +512,9 @@ def validate_choice(db: Session, question_id: int, choice_id: int):
 
 # create new response for using in endpoint!!!
 def create_new_response(db: Session, poll_responses: schemas.CreatePollResponse, poll_id: int, user_id: int) -> List[models.Response]:
-    """Функция для создания ответов на все вопросы в опросе - используется в эндпойнте
+    """
+    Функция для создания ответов на все вопросы в опросе - используется в эндпойнте
+
     :param db: сессия БД,
     :param poll_responses: схема со списком ответов на вопросы опроса,
     :param poll_id: id опроса,
@@ -483,10 +542,14 @@ def create_new_response(db: Session, poll_responses: schemas.CreatePollResponse,
 
 
 def handle_single_choice_response(db, db_question: models.Question, response_data: schemas.ResponsePayload):
-    """ Обработчик ответа на вопрос с одним вариантом ответа
+    """
+    Обработчик ответа на вопрос с одним вариантом ответа
+
     :param db: сессия БД,
     :param db_question: модель вопроса,
-    :param response_data: общая схема для создания ответа на вопрос,"""
+    :param response_data: общая схема для создания ответа на вопрос
+    :return create_response
+    """
     logger.info(response_data.choice_id)
     # check that response data has only choice_id for single choice question
     if not (response_data.choice_id or response_data.choice_ids) or response_data.choice_text or response_data.choice_texts:
@@ -496,10 +559,14 @@ def handle_single_choice_response(db, db_question: models.Question, response_dat
 
 
 def handle_multiple_choice_response(db, db_question: models.Question, response_data: schemas.ResponsePayload):
-    """ Обработчик ответа на вопрос с несколькими вариантами ответа
+    """
+    Обработчик ответа на вопрос с несколькими вариантами ответа
+
     :param db: сессия БД,
     :param db_question: модель вопроса,
-    :param response_data: общая схема для создания ответа на вопрос"""
+    :param response_data: общая схема для создания ответа на вопрос
+    :return create_response
+    """
     # check that response data has only choice_ids for multiple choice question
     if not (response_data.choice_id or response_data.choice_ids) or response_data.choice_text or response_data.choice_texts:
         raise HTTPException(status_code=400, detail="Invalid answer data for multiple choice question")
@@ -509,7 +576,9 @@ def handle_multiple_choice_response(db, db_question: models.Question, response_d
 
 
 def handle_text_response(db, db_question: models.Question, response_data: schemas.ResponsePayload):
-    """ Обработчик ответа на вопрос с одним или несколькими текстовыми ответоми
+    """
+    Обработчик ответа на вопрос с одним или несколькими текстовыми ответоми
+
     :param db: сессия БД,
     :param db_question: модель вопроса,
     :param response_data: схема для создания ответа на вопрос с текстовым ответом"""
@@ -530,6 +599,15 @@ question_handlers = {
 
 # delete question from the user poll
 def delete_question(db: Session, poll_id: int, question_id: int, user_id: int):
+    """
+    Удаление вопроса
+
+    :param db: сессия БД,
+    :param poll_id: id опроса,
+    :param question_id: id вопроса,
+    :param user_id: id пользователя,
+    :return: удаленный вопрос
+    """
     # check that question is belong to user
     db_poll = db.query(models.Poll).filter(models.Poll.id == poll_id).filter(models.Poll.user_id == user_id).first()
     if not db_poll:
@@ -545,7 +623,67 @@ def delete_question(db: Session, poll_id: int, question_id: int, user_id: int):
 
 # get all responses from poll
 def get_all_poll_responses(db: Session, poll_id: int, user_id: int):
+    """
+    Получение всех ответов на опрос
+    :param db:
+    :param poll_id:
+    :param user_id:
+    :return: responses
+    """
     db_poll = db.query(models.Poll).filter(models.Poll.id == poll_id).filter(models.Poll.user_id == user_id).first()
     if not db_poll:
         raise HTTPException(status_code=404, detail="Poll not found")
     return db.query(models.Response).filter(models.Response.poll_id == poll_id).all()
+
+
+def get_poll_report(db: Session, poll_id: int):
+    """
+    Получение отчета по опросу
+    :param db:
+    :param poll_id:
+    :param user_id:
+    :return: responses
+    """
+    report = []
+    questions = db.query(models.Question).filter(models.Question.poll_id == poll_id).all()
+    for question in questions:
+        total_responses = db.query(models.Response).filter(models.Response.question_id == question.id).count()
+        if question.type == QuestionType.SINGLE:
+            response_report = []
+            choices = db.query(models.Choice).filter(models.Choice.question_id == question.id).all()
+            for choice in choices:
+                choice_count = db.query(models.Response).filter(models.Response.choice_id == choice.id).count()
+                percentage = round((choice_count / total_responses) * 100, 2) if total_responses else 0
+                response_report.append({"choice_id": choice.id,
+                                        "count": choice_count,
+                                        "percentage": percentage})
+            report.append({"question_id": question.id, "responses": response_report})
+        elif question.type == QuestionType.PLURAL:
+            responses_report = []
+            choices = db.query(models.Choice).filter(models.Choice.question_id == question.id).all()
+            for choice in choices:
+                choice_count = db.query(models.Response).filter(models.Response.choice_id == choice.id,
+                                                                models.Response.question_id == question.id).count()
+                percentage = round((choice_count / total_responses) * 100, 2) if total_responses else 0
+                responses_report.append({"choice_id": choice.id,
+                                         "count": choice_count,
+                                         "percentage": percentage})
+            report.append({"question_id": question.id, "responses": responses_report})
+        elif question.type == QuestionType.FREE_TEXT:
+            text_answers = db.query(models.Response.answer_text).filter(models.Response.question_id == question.id).all()
+            report.append({"question_id": question.id,
+                           "question_text": question.text,
+                           "text_answer": [answer[0] for answer in text_answers if answer[0]]
+                           })
+        elif question.type == QuestionType.FREE:
+            text_answers = db.query(models.Response.answer_text).filter(models.Response.question_id == question.id).all()
+            report.append({"question_id": question.id,
+                           "question_text": question.text,
+                           "text_answers": [answer[0] for answer in text_answers if answer[0]]
+                           })
+
+    return report
+
+
+
+

@@ -251,3 +251,19 @@ class ListResponses(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+class ChoiceReport(BaseModel):
+    choice_id: int
+    choice_count: int
+    percentage: float
+
+
+class QuestionReport(BaseModel):
+    question_id: int
+    choices_report: Optional[List[ChoiceReport]]
+    text_answers: Optional[List[str]]
+
+
+class PollReportResponse(BaseModel):
+    report: List[QuestionReport]

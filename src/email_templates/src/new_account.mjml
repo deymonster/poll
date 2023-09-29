@@ -2,16 +2,18 @@
   <mj-body background-color="#fff">
     <mj-section>
       <mj-column>
-        <mj-divider border-color="#555"></mj-divider>
+        <mj-image width="100px" src="/assets/img/logo-small.png"></mj-image>
+        <mj-divider border-color="#1857DA"></mj-divider>
         <mj-text font-size="20px" color="#555" font-family="helvetica">Добро пожаловать в {{ project_name }}!</mj-text>
-        <mj-text font-size="16px" color="#555">Уважаемый [Имя представителя организации]!</mj-text>
-        <mj-text font-size="16px" color="#555">Ваша организация приобрела лицензии на использование нашего сервиса. Мы рады приветствовать вас в числе наших клиентов!</mj-text>
-        <mj-text font-size="16px" color="#555">Для завершения регистрации и активации вашего аккаунта, пожалуйста, перейдите по следующей ссылке:</mj-text>
+        <mj-text font-size="16px" color="#555">Уважаемый пользователь {{ full_name }} !</mj-text>
+        <mj-text font-size="16px" color="#555">Ваша организация приобрела лицензии на использование нашего сервиса, и мы рады приветствовать вас среди наших клиентов!</mj-text>
+        <mj-text font-size="16px" color="#555">Для завершения регистрации и активации вашего аккаунта, пожалуйста, перейдите по указанной ниже ссылке:</mj-text>
+        <mj-text font-size="16px" color="#555">Обратите внимание: ссылка действительна в течении 48 часов.</mj-text>
         <mj-button padding="20px 0px" href="{{ link }}">Завершить регистрацию</mj-button>
-        <mj-text font-size="16px" color="#555">После завершения регистрации вы сможете в полной мере пользоваться всеми возможностями нашего сервиса.</mj-text>
+        <mj-text font-size="16px" color="#555">После завершения регистрации вы получите полный доступ ко всем функциям нашего продукта.</mj-text>
         <mj-text font-size="16px" color="#555">Если у вас возникнут вопросы или проблемы, пожалуйста, свяжитесь с нашей службой поддержки.</mj-text>
         <mj-text font-size="16px" color="#555">С наилучшими пожеланиями, Команда {{ project_name }}</mj-text>
-        <mj-divider border-color="#555" border-width="2px" />
+        <mj-divider border-color="#1857DA"></mj-divider>
       </mj-column>
     </mj-section>
   </mj-body>

@@ -79,10 +79,14 @@ def send_reset_password_email(email_to: str, email: str, token: str, front_url: 
         },
     )
 
+
 # send new account email
-def send_new_account_email(email_to: str, email: str, link: str, token: str):
-    """  Отправка письма с ссылкой для завершения регистрации
+def send_new_account_email(email_to: str, full_name: str, email: str, link: str, token: str):
+    """
+    Отправка письма с ссылкой для завершения регистрации
+
     :param email_to: адрес электронной почты куда отправляется письмо
+    :param full_name: полное имя пользователя
     :param email: адрес электронной почты пользователя - здесь это как имя пользователя
     :param link: ссылка на фронтенд
     :param token: токен регистрации
@@ -106,6 +110,7 @@ def send_new_account_email(email_to: str, email: str, link: str, token: str):
         enviroment={
             "project_name": config.PROJECT_NAME,
             "email": email_to,
+            "full_name": full_name,
             "link": link,
         },
     )
@@ -113,7 +118,9 @@ def send_new_account_email(email_to: str, email: str, link: str, token: str):
 
 # send new account complete registration email
 def send_new_account_complete_registration_email(email_to: str, email: str, full_name: str):
-    """  Отправка письма с подтверждением завершения регистрации
+    """
+    Отправка письма с подтверждением завершения регистрации
+
     :param email_to: адрес электронной почты куда отправляется письмо
     :param email: адрес электронной почты пользователя - здесь это как имя пользователя
     :param full_name: полное имя пользователя
@@ -158,7 +165,12 @@ def generate_registration_token(email: str, roles: List[UserRole], admin: str) -
 
 # verify registration token
 def verify_registration_token(token: str) -> Tuple[str, List[str], str]:
-    """ Проверка токена регистрации на валидность"""
+    """
+    Проверка токена регистрации на валидность
+
+    :param token: токен
+    :return: email, roles, admin_email
+    """
     try:
         decoded_token = jwt.decode(token, config.SECRET_KEY, algorithm="HS256")
         email = decoded_token["sub"]
@@ -174,6 +186,12 @@ def verify_registration_token(token: str) -> Tuple[str, List[str], str]:
 
 
 def verify_password_reset_token(token: str) -> Optional[str]:
+    """
+    Проверка токена сброса пароля на валидность
+
+    :param token: токен
+    :return: email
+    """
     try:
         decoded_token = jwt.decode(token, config.SECRET_KEY, algorithms=["HS256"])
         assert decoded_token["sub"] == password_reset_jwt_subject
@@ -183,6 +201,12 @@ def verify_password_reset_token(token: str) -> Optional[str]:
 
 
 def generate_password_reset_token(email: str):
+    """
+    Генерация токена сброса пароля
+
+    :param email: email пользователя
+    :return: токен
+    """
     delta = timedelta(hours=config.EMAIL_RESET_TOKEN_EXPIRE_HOURS)
     now = datetime.utcnow()
     expires = now + delta
