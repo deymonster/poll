@@ -19,7 +19,7 @@ services:
       context: .
       dockerfile: _configs/Dockerfile
     container_name: pool-app
-    command: uvicorn main:app --host 0.0.0.0 --port 5000 --reload
+    command: bash start.sh
     env_file:
       - .env
     environment:
@@ -46,10 +46,8 @@ services:
 #    environment:
 #      - VUE_APP_BACKEND_URL=http://poll-app:5000
 
-
 volumes:
   poll-db-data:
-
 
 networks:
   pool-network:

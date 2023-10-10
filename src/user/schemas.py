@@ -37,7 +37,7 @@ class UserCreate(UserBase):
     """
     User create model
     """
-    pass
+    password: str
 
 
 class UserCreateByEmail(UserBase):
