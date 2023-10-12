@@ -238,7 +238,6 @@ def update_user_me(
         return JSONResponse(status_code=e.status_code, content={"message": e.detail})
 
 
-
 @router.get("/me", response_model=User)
 def read_user_me(
         db: Session = Depends(get_db),
@@ -246,6 +245,7 @@ def read_user_me(
 ):
     """
     Эндпойнт для получения данных текущего активного пользователя
+
     :param db Сессия базы данных
     :param current_user Текущий пользователь со статусом активный
     :return возвращаем текущего пользователя

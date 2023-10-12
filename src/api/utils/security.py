@@ -118,7 +118,7 @@ def get_current_user(token: str = Depends(security), db: Session = Depends(get_d
         token_data = TokenPayload(**payload)
     except PyJWTError:
         raise HTTPException(
-            status_code=HTTP_403_FORBIDDEN, detail="Could not validate credentials"
+            status_code=HTTP_401_UNAUTHORIZED, detail="Could not validate credentials"
         )
     user = crud_user.get(db, id=token_data.user_id)
     if not user:
