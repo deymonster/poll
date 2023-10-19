@@ -128,6 +128,7 @@ def get_current_user(token: str = Depends(security), db: Session = Depends(get_d
 
 def get_current_active_user(current_user: User = Security(get_current_user)):
     """ Получение активного пользователя
+
     :param current_user: текущий пользователь как зависимость get_current_user
     :return: Возвращает текущего пользователя если он активен
     """
