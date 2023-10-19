@@ -72,7 +72,8 @@ def login_access_token_vue(
 # endpoint for refresh token for vue js
 @router.post("/refresh", summary="Обновление токена", description="Обновление токена доступа")
 def login_refresh_token_vue(token_data: RefreshToken, db: Session = Depends(get_db)):
-    """ " Эндпоинт для обновления токена доступа.
+    """ Эндпоинт для обновления токена доступа.
+
     :param token_data: Зависимость от класса RefreshToken для получения данных из тела запроса
     :param db: Сессия базы данных
     :return: Возвращает токен доступа и токен обновления
@@ -116,7 +117,7 @@ def login_refresh_token_vue(token_data: RefreshToken, db: Session = Depends(get_
 
     access_token_expires = timedelta(minutes=config.ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.email}, user_id=user.id, expire_delta=access_token_expires
+        data={"sub": user.email, "roles": user.roles}, user_id=user.id, expire_delta=access_token_expires
     )
     return {"access_token": access_token}
 
