@@ -235,6 +235,8 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
                         detail="The company has no free licenses.",
                     )
                 obj_in.roles = [UserRole.USER]
+            case _ if UserRole.SUPERADMIN in current_user.roles:
+                obj_in.roles = [UserRole.USER]
             case _:
                 raise HTTPException(status_code=403, detail="Unknown user role")
         registration_token = generate_registration_token(email=obj_in.email,
