@@ -36,7 +36,7 @@ def get_companies(db: Session = Depends(get_db),
         companies = service.get_all_companies(db)
         return companies
     except Exception as e:
-        raise HTTPException(status_code=400, detail="Errors while getting user polls with error: " + str(e))
+        raise HTTPException(status_code=400, detail="Errors while getting all companies: " + str(e))
 
 
 # enpoint to create company

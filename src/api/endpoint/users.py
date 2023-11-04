@@ -137,9 +137,9 @@ def complete_registration(data: RegistrationCompletion,
 
     Пример схемы для завершения регистрации пользователя
     {
-    "token": "{token}"
-    "password": "{password}"
-    "company_id": "1"
+    "token": "{token}",
+    "password": "{password}",
+    "company_id": "1",
     "full_name": "Петрова Анна Юрьевна"
     }
     """
