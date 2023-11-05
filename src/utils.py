@@ -1,4 +1,5 @@
 import logging
+from humps import camelize
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional, List, Tuple, Union
@@ -7,6 +8,7 @@ import emails
 import jwt
 from emails.template import JinjaTemplate
 from jwt.exceptions import InvalidTokenError
+from pydantic import BaseModel
 
 from core import config
 from core.exceptions import TokenExpiredError, CustomInvalidTokenError
@@ -217,6 +219,13 @@ def generate_password_reset_token(email: str):
         algorithm="HS256",
     )
     return encoded_jwt
+
+
+class CamelModelMixin(BaseModel):
+    class Config:
+        alias_generator = camelize
+        allow_population_byt_field_name = True
+
 
 
 

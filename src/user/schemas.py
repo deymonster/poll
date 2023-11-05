@@ -1,7 +1,9 @@
+import uuid
 from typing import Optional, List
 from pydantic import BaseModel, EmailStr
-import uuid
 from enum import Enum
+
+from utils import CamelModelMixin
 
 
 class Roles(str, Enum):
@@ -13,7 +15,7 @@ class Roles(str, Enum):
     USER = "user"
 
 
-class UserBase(BaseModel):
+class UserBase(CamelModelMixin):
     """
     Base user model
     """
@@ -68,14 +70,14 @@ class UserInDB(UserBaseInDB):
     hashed_password: str
 
 
-class TokenData(BaseModel):
+class TokenData(CamelModelMixin):
     """
     Token data model
     """
     token: str
 
 
-class RegistrationCompletion(BaseModel):
+class RegistrationCompletion(CamelModelMixin):
     """
     Registration completion model
     """

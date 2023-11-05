@@ -21,6 +21,7 @@ python-multipart = "^0.0.6"
 pydantic = {extras = ["email"], version = "^2.1.1"}
 pydantic-settings = "^2.0.2"
 apscheduler = "^3.10.4"
+pyhumps = "^3.8.0"
 
 
 [build-system]

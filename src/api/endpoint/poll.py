@@ -55,7 +55,8 @@ def user_polls(db: Session = Depends(get_db), user: User = Depends(get_current_a
 # endpoint for adding new poll user for vue frontend
 @router.post("/user_polls")
 def create_poll(
-        poll_data: schemas.CreateSimplePoll, db: Session = Depends(get_db), user: User = Depends(get_current_active_user)
+        poll_data: schemas.CreateSimplePoll, db: Session = Depends(get_db),
+        user: User = Depends(get_current_active_user)
 ):
     """
     Эндпоинт для создания нового опроса c названием пользователем
@@ -71,6 +72,14 @@ def create_poll(
     except Exception as e:
         raise HTTPException(status_code=400, detail="Error while creating user poll:" + str(e))
 
+
+# TODO: Дописать клонирование опроса по его ID
+""" Данный метод будет POST запросом и принимать в теле запроса ID-poll который мы хотим клонировать. """
+# @router.post("/user_polls/clone", response_model=schemas.Poll)
+# def clone_poll_by_id(poll_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_active_user)) -> schemas.Poll:
+#     poll = service.get_single_poll(poll_id=poll_id, user_id=user.id)
+#     new_poll = service.create_new_simple_poll()
+#     return new_poll
 
 # ednpoint for updating poll
 @router.put("/user_polls/{poll_id}", response_model=Msg)
@@ -118,7 +127,7 @@ def change_poll_status(poll_id: int,
 
 
 # endpoint for deleteing user poll
-@router.delete("/user_polls/{poll_id}",  response_model=Msg)
+@router.delete("/user_polls/{poll_id}", response_model=Msg)
 def delete_user_poll(poll_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_active_user)):
     """ Эндпойнт для удаления опроса пользователем
     :param poll_id: Идентификатор опроса
@@ -172,7 +181,7 @@ def get_poll_questions_by_uuid(poll_uuid: UUID, db: Session = Depends(get_db)):
 @router.post("/user_polls/{poll_id}/questions", response_model=schemas.Question)
 def create_question(question: schemas.QuestionCreate, poll_id: int, db: Session = Depends(get_db),
                     user: User = Depends(get_current_active_user)
-):
+                    ):
     """ Эндпоинт для создания нового вопроса в опросе c вариантами ответом
         :param poll_id: Идентификатор опроса
         :param question: Данные вопроса согласно схеме QuestionCreate
@@ -237,6 +246,7 @@ def delete_question(poll_id: int, question_id: int, db: Session = Depends(get_db
     service.delete_question(db=db, poll_id=poll_id, question_id=question_id, user_id=user.id)
     return JSONResponse(status_code=204, content={"message": "Question was deleted"})
 
+
 #
 # #  endpoint for paginated user polls
 # @router.get("/polls", deprecated=True)
@@ -294,7 +304,6 @@ def delete_question(poll_id: int, question_id: int, db: Session = Depends(get_db
 #                                        "polls": polls,
 #                                        "total_polls": total_polls, }
 #                                       )
-
 
 
 # # endpoint for delete user poll by id and return polls list
@@ -392,7 +401,3 @@ def get_poll_report(poll_id: int, db: Session = Depends(get_db), user: User = De
     :return: Отчет по опросу"""
     report = service.get_poll_report(db=db, poll_id=poll_id)
     return report
-
-
-
-
