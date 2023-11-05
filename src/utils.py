@@ -221,10 +221,14 @@ def generate_password_reset_token(email: str):
     return encoded_jwt
 
 
+def to_camel(string):
+    return camelize(string)
+
+
 class CamelModelMixin(BaseModel):
     class Config:
-        alias_generator = camelize
-        allow_population_byt_field_name = True
+        alias_generator = to_camel
+        populate_by_name = True
 
 
 

@@ -17,7 +17,7 @@ class Choice(ChoiceBase):
     question_id: int
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class ChoiceCreate(CamelModelMixin):
@@ -68,7 +68,7 @@ class Question(QuestionBase):
     choice: Optional[List[Choice]] = []
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class QuestionPage(CamelModelMixin):
@@ -76,7 +76,7 @@ class QuestionPage(CamelModelMixin):
     questions: Optional[List[Question]] = []
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 # schema for creating Question
@@ -98,7 +98,7 @@ class QuestionUpdate(CamelModelMixin):
     choice: List[ChoiceUpdate]
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 # schema for plural question without choices
@@ -138,7 +138,7 @@ class Poll(PollBase):
     question: Optional[List[Question]] = []
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class CreatePoll(Poll):
@@ -252,7 +252,7 @@ class ListResponses(CamelModelMixin):
     created_at: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class ChoiceReport(CamelModelMixin):

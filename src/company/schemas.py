@@ -30,7 +30,7 @@ class CompanyCreate(CamelModelMixin):
     #     return inn
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class CompanyOut(CompanyBaseId, CompanyCreate):
