@@ -3,28 +3,30 @@ from typing import List
 from pydantic import Field
 from pydantic.main import BaseModel
 
+from utils import CamelModelMixin
 
-class Token(BaseModel):
+
+class Token(CamelModelMixin):
     access_token: str
     token_type: str
 
 
-class TokenPayload(BaseModel):
+class TokenPayload(CamelModelMixin):
     user_id: int = None
     exp: int
     roles: List[str]
 
 
-class RefreshTokenPayload(BaseModel):
+class RefreshTokenPayload(CamelModelMixin):
     user_id: int = None
     exp: int
 
 
-class RefreshToken(BaseModel):
+class RefreshToken(CamelModelMixin):
     refresh_token: str = Field(..., description="Токен обновления")
 
 
-class Msg(BaseModel):
+class Msg(CamelModelMixin):
     msg: str
 
 

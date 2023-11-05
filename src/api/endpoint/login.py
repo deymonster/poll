@@ -132,9 +132,10 @@ def test_token(current_user: DBUser = Depends(get_current_user)):
 
 @router.post("/password-recovery/{email}", response_model=Msg)
 def recover_password(request: Request, backgroud_tasks: BackgroundTasks, email: str, db: Session = Depends(get_db)):
-
     """
     Эндпойнт для сброса пароля
+
+
     :param request Объект Request.
     :param backgroud_tasks: Зависимость от класса BackgroundTasks для отправки письма в фоновом режиме
     :param email: адрес электронной почты

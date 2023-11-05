@@ -4,8 +4,10 @@ from datetime import datetime
 from enum import Enum
 from uuid import UUID
 
+from utils import CamelModelMixin
 
-class ChoiceBase(BaseModel):
+
+class ChoiceBase(CamelModelMixin):
     text: str
     choice_cover: Optional[str] = None
 
@@ -18,7 +20,7 @@ class Choice(ChoiceBase):
         orm_mode = True
 
 
-class ChoiceCreate(BaseModel):
+class ChoiceCreate(CamelModelMixin):
     text: str
     choice_cover: Optional[str] = None
     text_fields_count: Optional[int] = None
@@ -50,7 +52,7 @@ class StatusPoll(str, Enum):
     ARCHIVED = 'ARCHIVED'
 
 
-class QuestionBase(BaseModel):
+class QuestionBase(CamelModelMixin):
     """Base model schemas question"""
 
     id: int
@@ -69,7 +71,7 @@ class Question(QuestionBase):
         orm_mode = True
 
 
-class QuestionPage(BaseModel):
+class QuestionPage(CamelModelMixin):
     total_questions: Optional[int] = None
     questions: Optional[List[Question]] = []
 
@@ -78,7 +80,7 @@ class QuestionPage(BaseModel):
 
 
 # schema for creating Question
-class QuestionCreate(BaseModel):
+class QuestionCreate(CamelModelMixin):
     type: QuestionType
     text: str
     question_cover: Optional[str] = None
@@ -88,7 +90,7 @@ class QuestionCreate(BaseModel):
 
 
 # schema for updating Question
-class QuestionUpdate(BaseModel):
+class QuestionUpdate(CamelModelMixin):
     text: Optional[str]
     question_cover: Optional[str] = None
     option_pass: Optional[bool] = True
@@ -105,7 +107,7 @@ class PluralQuestion(Question):
 
 
 # schema for updating Question
-class UpdateQuestion(BaseModel):
+class UpdateQuestion(CamelModelMixin):
     type: Optional[QuestionType]
     text: str
     question_cover: Optional[str] = None
@@ -118,7 +120,7 @@ class QuestionDelete(Question):
     id: int
 
 
-class PollBase(BaseModel):
+class PollBase(CamelModelMixin):
     """Base model schemas poll"""
 
     created_at: datetime = datetime.utcnow()
@@ -143,7 +145,7 @@ class CreatePoll(Poll):
     question: Optional[List[Question]] = []
 
 
-class CreateSimplePoll(BaseModel):
+class CreateSimplePoll(CamelModelMixin):
     title: str
     description: Optional[str] = None
 
@@ -155,14 +157,14 @@ class PollDetail(PollBase):
 #     pass
 
 
-class UpdatePoll(BaseModel):
+class UpdatePoll(CamelModelMixin):
     title: Optional[str] = None
     description: Optional[str] = None
     poll_cover: Optional[str] = None
     poll_status: StatusPoll = StatusPoll.DRAFT
 
 
-class PollStatusUpdate(BaseModel):
+class PollStatusUpdate(CamelModelMixin):
     poll_status: bool = False
 
 
@@ -208,32 +210,32 @@ class DeletePoll(Poll):
 #     answer_text: Optional[Dict[Any, Any]] = None
 
 
-class SingleChoiceResponse(BaseModel):
+class SingleChoiceResponse(CamelModelMixin):
     question_id: int
     choice_id: int
 
 
-class MultipleChoiceResponse(BaseModel):
+class MultipleChoiceResponse(CamelModelMixin):
     question_id: int
     choice_ids: List[int]
     choice_text: Optional[str] = None
 
 
-class SingleTextResponse(BaseModel):
+class SingleTextResponse(CamelModelMixin):
     question_id: int
     answer_text: constr(max_length=500, pattern=r"^[а-яА-ЯёЁa-zA-Z0-9\s]+$")
 
 
-class MultipleTextResponse(BaseModel):
+class MultipleTextResponse(CamelModelMixin):
     question_id: int
     answer_text: List[constr(max_length=500, pattern=r"^[а-яА-ЯёЁa-zA-Z0-9\s]+$")]
 
 
-class CreateSingleResponse(BaseModel):
+class CreateSingleResponse(CamelModelMixin):
     response: Union[SingleChoiceResponse, MultipleChoiceResponse, SingleTextResponse, MultipleTextResponse]
 
 
-class ResponsePayload(BaseModel):
+class ResponsePayload(CamelModelMixin):
     question_id: int
     choice_id: Optional[int] = None
     choice_ids: Optional[List[int]] = None
@@ -241,11 +243,11 @@ class ResponsePayload(BaseModel):
     choice_texts: Optional[Union[str, List[str]]] = None
 
 
-class CreatePollResponse(BaseModel):
+class CreatePollResponse(CamelModelMixin):
     responses: List[ResponsePayload]
 
 
-class ListResponses(BaseModel):
+class ListResponses(CamelModelMixin):
     id: int
     created_at: datetime
 
@@ -253,17 +255,17 @@ class ListResponses(BaseModel):
         orm_mode = True
 
 
-class ChoiceReport(BaseModel):
+class ChoiceReport(CamelModelMixin):
     choice_id: int
     choice_count: int
     percentage: float
 
 
-class QuestionReport(BaseModel):
+class QuestionReport(CamelModelMixin):
     question_id: int
     choices_report: Optional[List[ChoiceReport]]
     text_answers: Optional[List[str]]
 
 
-class PollReportResponse(BaseModel):
+class PollReportResponse(CamelModelMixin):
     report: List[QuestionReport]

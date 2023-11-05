@@ -2,12 +2,14 @@ from pydantic import BaseModel, Field, constr, validator
 from typing import Optional, List, Dict, Any, Union
 from datetime import datetime
 
+from utils import CamelModelMixin
 
-class CompanyBaseId(BaseModel):
+
+class CompanyBaseId(CamelModelMixin):
     id: int
 
 
-class CompanyCreate(BaseModel):
+class CompanyCreate(CamelModelMixin):
     """Base model schemas for creating company"""
     name: str
     full_name: str
@@ -36,7 +38,7 @@ class CompanyOut(CompanyBaseId, CompanyCreate):
     pass
 
 
-class CompanyUpdate(BaseModel):
+class CompanyUpdate(CamelModelMixin):
     """Schema for updating a company"""
     name: Optional[str] = None
     full_name: Optional[str] = None
