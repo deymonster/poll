@@ -25,7 +25,7 @@ class UserBase(CamelModelMixin):
     roles: List[str] = []
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class UserBaseInDB(UserBase):
