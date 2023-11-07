@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from fastapi import Request
 from starlette.responses import JSONResponse
 
-from base.schemas import Msg
+from base.schemas import Message
 from core import config
 from core.security import get_password_hash
 from utils import send_new_account_email, generate_registration_token, verify_registration_token, \
@@ -53,7 +53,7 @@ def read_users(
 
 
 # endpoint for pre-registration user
-@router.post("/register", response_model=Msg)
+@router.post("/register", response_model=Message)
 def pre_register_user(
         *,
         request: Request,
@@ -94,7 +94,7 @@ def pre_register_user(
 
 
 # endpoint for verification registration token
-@router.post("/register/verify", response_model=Msg)
+@router.post("/register/verify", response_model=Message)
 def verify_token(token_data: TokenData):
     """ Эндпойнт для проверки токена регистрации
 
@@ -107,7 +107,7 @@ def verify_token(token_data: TokenData):
     """
     try:
         email, roles, admin_email = verify_registration_token(token_data.token)
-        return {"msg": "Token is valid"}
+        return {"message": "Token is valid"}
     except TokenExpiredError as e:
         return JSONResponse(status_code=400, content={"message": str(e)})
     except CustomInvalidTokenError as e:
@@ -289,7 +289,7 @@ def read_user_by_id(user_id: int,
 
 
 # endpoint for deleting user
-@router.delete("/{user_id}", response_model=Msg)
+@router.delete("/{user_id}", response_model=Message)
 def delete_user(*, db: Session = Depends(get_db), user_id: int,
                 current_user: User = Depends(get_current_active_user),
                 ):
@@ -297,7 +297,7 @@ def delete_user(*, db: Session = Depends(get_db), user_id: int,
     :param db Сессия базы данных
     :param user_id ID пользователя
     :param current_user текущий пользователя с правами суперадмин
-    :return Msg - message about deleting"""
+    :return message:  - message about deleting"""
     get_current_user_with_roles(current_user, required_roles=[UserRole.SUPERADMIN, UserRole.ADMIN])
     user = crud_user.get(db, id=user_id)
     if not user:
@@ -307,6 +307,6 @@ def delete_user(*, db: Session = Depends(get_db), user_id: int,
         )
     try:
         crud_user.remove(db_session=db, id=user_id)
-        return {"msg": "User was deleted"}
+        return {"message": "User was deleted"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error while deleting user {e}")

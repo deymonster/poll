@@ -132,10 +132,17 @@ class PollBase(CamelModelMixin):
     user_id: int
 
 
-class Poll(PollBase):
+class Poll(CamelModelMixin):
     id: int
-    uuid: UUID
-    question: Optional[List[Question]] = []
+    created_at: datetime
+    title: str
+    description: Optional[str] = None
+    poll_cover: Optional[str] = None
+    status_poll: StatusPoll = StatusPoll.DRAFT
+
+
+class PollAllData(PollBase):
+    question: List[Question]
 
     class Config:
         from_attributes = True

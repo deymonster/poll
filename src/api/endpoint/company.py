@@ -7,7 +7,7 @@ from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 from starlette.responses import RedirectResponse, JSONResponse
 
-from base.schemas import Msg
+from base.schemas import Message
 from api.utils.db import get_db
 from api.utils.security import get_current_user_with_roles, get_current_user, get_current_active_user
 from company import service
@@ -84,7 +84,7 @@ def get_company_by_id(company_id: int, db: Session = Depends(get_db),
 
 
 # endpoint for updating company by id
-@router.put("/companies/{company_id}", description='Endpoint for updating company by id')
+@router.patch("/companies/{company_id}", description='Endpoint for updating company by id')
 def update_company_by_id(company_id: int, data: schemas.CompanyUpdate, db: Session = Depends(get_db),
                          current_user: User = Depends(get_current_active_user)):
     """Endpoint for updating company by id

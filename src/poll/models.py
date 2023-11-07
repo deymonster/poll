@@ -50,6 +50,7 @@ class Question(Base):
     option_pass = Column(Boolean, default=False)
     option_other_answer = Column(Boolean, default=False)
     poll_id = Column(Integer, ForeignKey("poll.id"))
+    order = Column(Integer, default=10, index=True)
     poll = relationship("Poll", back_populates="question")
     choice = relationship("Choice", back_populates="question")
     response = relationship("Response", back_populates="question")

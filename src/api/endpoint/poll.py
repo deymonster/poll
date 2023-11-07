@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from starlette import status
 from starlette.responses import RedirectResponse, JSONResponse
 
-from base.schemas import Msg
+from base.schemas import Message
 from poll.schemas import QuestionPage, Question
 from api.utils.security import get_current_user, get_current_active_user
 from api.utils.db import get_db
@@ -73,16 +73,19 @@ def create_poll(
         raise HTTPException(status_code=400, detail="Error while creating user poll:" + str(e))
 
 
-# TODO: Дописать клонирование опроса по его ID
-""" Данный метод будет POST запросом и принимать в теле запроса ID-poll который мы хотим клонировать. """
-# @router.post("/user_polls/clone", response_model=schemas.Poll)
-# def clone_poll_by_id(poll_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_active_user)) -> schemas.Poll:
-#     poll = service.get_single_poll(poll_id=poll_id, user_id=user.id)
-#     new_poll = service.create_new_simple_poll()
-#     return new_poll
+@router.post("/user_polls/{poll_id}/clone", response_model=Message)
+def clone_poll_by_id(poll_id: int,
+                     db: Session = Depends(get_db),
+                     user: User = Depends(get_current_active_user)):
+    try:
+        service.clone_poll_by_id(db=db, poll_id=poll_id, user_id=user.id)
+        return JSONResponse(status_code=201, content={"message": "Poll created successfully"})
+    except Exception as e:
+        raise HTTPException(status_code=400, detail="Error while creating user poll:" + str(e))
+
 
 # ednpoint for updating poll
-@router.put("/user_polls/{poll_id}", response_model=Msg)
+@router.put("/user_polls/{poll_id}", response_model=Message)
 def update_poll(poll_id: int,
                 poll_data: schemas.UpdatePoll,
                 db: Session = Depends(get_db),
@@ -94,7 +97,7 @@ def update_poll(poll_id: int,
     :param poll_data Данные для обновления опроса
     :param db: Сессия базы данных
     :param user: Текущий активный пользователь
-    :return msg Сообщение об  успешном удалении опроса
+    :return message Сообщение об  успешном удалении опроса
     """
     try:
         poll = service.update_poll(db=db, poll_id=poll_id, poll=poll_data, user_id=user.id)
@@ -105,7 +108,7 @@ def update_poll(poll_id: int,
 
 
 # endpoint for changing poll status
-@router.post("/user_polls/{poll_id}/status", response_model=Msg)
+@router.post("/user_polls/{poll_id}/status", response_model=Message)
 def change_poll_status(poll_id: int,
                        payload_status: schemas.PollStatusUpdate,
                        db: Session = Depends(get_db),
@@ -127,13 +130,13 @@ def change_poll_status(poll_id: int,
 
 
 # endpoint for deleteing user poll
-@router.delete("/user_polls/{poll_id}", response_model=Msg)
+@router.delete("/user_polls/{poll_id}", response_model=Message)
 def delete_user_poll(poll_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_active_user)):
     """ Эндпойнт для удаления опроса пользователем
     :param poll_id: Идентификатор опроса
     :param db: Сессия базы данных
     :param user: Текущий активный пользователь
-    :return msg Сообщение об  успешном удалении опроса"""
+    :return message: Сообщение об  успешном удалении опроса"""
     service.delete_poll_by_user(db=db, poll_id=poll_id, user_id=user.id)
     return JSONResponse(status_code=204, content={"message": "Poll was deleted"})
 
@@ -153,7 +156,7 @@ def get_poll(poll_id: int, db: Session = Depends(get_db), user: User = Depends(g
 
 
 # QUESTIONS
-# endpoint for getting all quesions from poll
+# endpoint for getting all questions from poll
 @router.get("/user_polls/{poll_id}/questions", response_model=List[schemas.Question])
 def get_poll_questions(poll_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_active_user)):
     """ Эндпойнт для получения списка вопросов в опросе
@@ -234,7 +237,7 @@ def update_question(
 
 
 # endpoint for deleting question from poll
-@router.delete("/user_polls/{poll_id}/questions/{question_id}", response_model=Msg)
+@router.delete("/user_polls/{poll_id}/questions/{question_id}", response_model=Message)
 def delete_question(poll_id: int, question_id: int, db: Session = Depends(get_db),
                     user: User = Depends(get_current_active_user)):
     """ Эндпойнт для удаления вопроса в опросе
@@ -242,7 +245,7 @@ def delete_question(poll_id: int, question_id: int, db: Session = Depends(get_db
     :param question_id: Идентификатор вопроса
     :param db: Сессия базы данных
     :param user: Текущий активный пользователь
-    :return msg Сообщение об  успешном удалении вопроса"""
+    :return message: Сообщение об  успешном удалении вопроса"""
     service.delete_question(db=db, poll_id=poll_id, question_id=question_id, user_id=user.id)
     return JSONResponse(status_code=204, content={"message": "Question was deleted"})
 
@@ -362,7 +365,7 @@ def delete_question(poll_id: int, question_id: int, db: Session = Depends(get_db
 
 # RESPONSES
 # endpoint for creating response for all poll questions
-@router.post("/user_polls/{poll_id}/responses", response_model=Msg)
+@router.post("/user_polls/{poll_id}/responses", response_model=Message)
 def create_poll_response(poll_id: int, poll_responses: schemas.CreatePollResponse, db: Session = Depends(get_db),
                          user: User = Depends(get_current_active_user)):
     """
@@ -371,7 +374,7 @@ def create_poll_response(poll_id: int, poll_responses: schemas.CreatePollRespons
     :param poll_responses: Схема для создания ответа на все вопросы опроса
     :param db: Сессия базы данных
     :param user: Текущий активный пользователь
-    :return msg Сообщение об  успешном создании ответов на все вопросы опроса
+    :return message: Сообщение об  успешном создании ответов на все вопросы опроса
     """
     logger.info(f"Poll responses {poll_responses}")
     service.create_new_response(db=db, poll_responses=poll_responses, poll_id=poll_id, user_id=user.id)
