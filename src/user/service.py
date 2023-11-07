@@ -182,6 +182,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
                 if current_user.id != db_obj.id:
                     raise HTTPException(status_code=403, detail="The user can't update another user")
                 update_data.roles = [UserRole.USER]
+                update_data.email = current_user.email
                 return super().update(db_session, db_obj=db_obj, obj_in=update_data)
 
             case _:
@@ -253,7 +254,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
                                   email=obj_in.email,
                                   link=frontend_url,
                                   token=registration_token)
-        return {"msg": "Registration email sent to user"}
+        return {"message": "Registration email sent to user"}
 
 
 crud_user = CRUDUser(User)

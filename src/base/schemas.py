@@ -4,29 +4,36 @@ from pydantic import Field
 from pydantic.main import BaseModel
 
 from utils import CamelModelMixin
+from dataclasses import dataclass
+from datetime import timedelta
 
 
-class Token(CamelModelMixin):
-    access_token: str
-    token_type: str
+@dataclass
+class TokenData:
+    """ Dataclass for token data """
+
+    user_id: str
+
+    def to_dict(self):
+        return {
+            "user_id": self.user_id,
+        }
 
 
-class TokenPayload(CamelModelMixin):
-    user_id: int = None
+@dataclass
+class TokenPayload:
+    """ Dataclass for token payload """
+
+    user_id: int
     exp: int
-    roles: List[str]
-
-
-class RefreshTokenPayload(CamelModelMixin):
-    user_id: int = None
-    exp: int
+    sub: str
 
 
 class RefreshToken(CamelModelMixin):
     refresh_token: str = Field(..., description="Токен обновления")
 
 
-class Msg(CamelModelMixin):
+class Message(CamelModelMixin):
     msg: str
 
 

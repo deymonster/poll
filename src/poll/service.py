@@ -12,7 +12,7 @@ from base.service import CRUDBase
 from mimetypes import guess_type
 from typing import Optional
 
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from .models import PollStatus, Response
 from .schemas import QuestionType
@@ -42,6 +42,18 @@ crud_poll = CRUDPoll(models.Poll)
 
 
 # POLL
+
+# get single poll with questions and choices
+def get_single_poll(db: Session, poll_id: int, user_id: int):
+    """ Get user poll with all questions and choices in it"""
+    return (
+        db.query(models.Poll)
+        .options(joinedload(models.Poll.question)
+        .joinedload(models.Question.choice))
+        .filter(models.Poll.id == poll_id)
+        .filter(models.Poll.user_id == user_id)
+        .first())
+
 
 # create new poll with questions and choices
 def create_new_poll(db: Session, poll: schemas.CreatePoll, user_id: int):
@@ -81,6 +93,34 @@ def create_new_simple_poll(db: Session, poll: schemas.CreateSimplePoll, user_id:
     return db_poll
 
 
+def clone_poll_by_id(db: Session, poll_id, user_id: int):
+    """ Клонирование опроса из существующего
+
+    :param db: Session DB
+    :param poll_id: Poll ID
+    :param user_id: User ID
+    :return new_poll: Poll
+    """
+    original_poll = get_single_poll(db, poll_id, user_id)
+    new_uuid = uuid4()
+    if original_poll is None:
+        raise HTTPException(status_code=404, detail="Poll not found")
+    table = original_poll.__table__
+    non_pk_columns = [k for k in table.columns.keys() if k not in table.primary_key]
+    data = {c: getattr(original_poll, c) for c in non_pk_columns}
+    data['uuid'] = new_uuid
+    data['poll_status'] = PollStatus.DRAFT
+    new_poll = models.Poll(**data)
+    db.add(new_poll)
+    db.commit()
+    new_poll.question = original_poll.question
+    db.commit()
+    return new_poll
+
+
+
+
+
 # get all user polls
 def get_all_user_poll(db: Session, user_id: int, status: Optional[PollStatus] = None):
     """
@@ -91,7 +131,9 @@ def get_all_user_poll(db: Session, user_id: int, status: Optional[PollStatus] = 
     :param status: PollStatus (optional)
     :return: List[Model Poll]
     """
-    query = db.query(models.Poll).filter(models.Poll.user_id == user_id)
+    selected_fileds = [models.Poll.id, models.Poll.created_at, models.Poll.title, models.Poll.description,
+                       models.Poll.poll_cover, models.Poll.poll_status]
+    query = db.query(*selected_fileds).filter(models.Poll.user_id == user_id)
     if status:
         query = query.filter(models.Poll.poll_status == status)
     return query.all()
@@ -123,18 +165,6 @@ def get_all_user_poll(db: Session, user_id: int, status: Optional[PollStatus] = 
 #     logger.info(f"Total polls {total_polls}")
 #     return polls, total_polls
 
-
-
-
-# get single poll with questions and choices
-def get_single_poll(db: Session, poll_id: int, user_id: int):
-    return (
-        db.query(models.Poll)
-        .options(joinedload(models.Poll.question)
-        .joinedload(models.Question.choice))
-        .filter(models.Poll.id == poll_id)
-        .filter(models.Poll.user_id == user_id)
-        .first())
 
 
 # get single poll with list of responses
@@ -371,10 +401,12 @@ def create_single_question(
     :param question_data: схема вопроса
     :return db_question: Вопрос
     """
+    max_order = db.query(func.max(models.Question.order)).filter(models.Question.poll_id == poll_id).scalars() or 0
+    new_order = max_order + 10
     db_poll = db.query(models.Poll).filter(models.Poll.id == poll_id, models.Poll.user_id == user_id).first()
     if not db_poll:
         raise HTTPException(status_code=404, detail="Poll not found for the user")
-    db_question = models.Question(**question_data.model_dump(exclude={"choice"}), poll_id=poll_id)
+    db_question = models.Question(**question_data.model_dump(exclude={"choice"}), poll_id=poll_id, order=new_order)
     db.add(db_question)
     db.flush()
     for choice_data in question_data.choice:

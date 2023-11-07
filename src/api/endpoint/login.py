@@ -14,7 +14,7 @@ from core.security import get_password_hash
 
 from api.utils.db import get_db
 from api.utils.security import get_current_user
-from base.schemas import Msg, Token, TokenPayload, RefreshToken, RefreshTokenPayload
+from base.schemas import Message, TokenPayload, RefreshToken, TokenData
 from user.models import User as DBUser
 from user.schemas import User, UserCreate, UserCreateByEmail
 from user.service import crud_user
@@ -55,12 +55,12 @@ def login_access_token_vue(
         raise HTTPException(status_code=400, detail="Inactive user")
 
     access_token_expires = timedelta(minutes=config.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user.email, "roles": user.roles}, user_id=user.id, expire_delta=access_token_expires
-    )
+    access_token_data = TokenData(user_id=user.id)
+    access_token = create_access_token(data=access_token_data.to_dict(), expire_delta=access_token_expires)
 
     refresh_token_expires = timedelta(minutes=config.REFRESH_TOKEN_EXPIRE_MINUTES)
-    refresh_token = create_refresh_token(data={"sub": user.email}, user_id=user.id, expire_delta=refresh_token_expires)
+    refresh_token_data = TokenData(user_id=user.id)
+    refresh_token = create_refresh_token(data=refresh_token_data.to_dict(), expire_delta=refresh_token_expires)
 
     return {
         "message": "Login successfull",
@@ -106,7 +106,7 @@ def login_refresh_token_vue(token_data: RefreshToken, db: Session = Depends(get_
         user_id: str = payload.get("user_id")
         if user_id is None:
             raise credentials_exception
-        token_data = RefreshTokenPayload(user_id=user_id, exp=payload.get("exp"))
+        token_data = TokenPayload(**payload)
     except (jwt.ExpiredSignatureError, jwt.InvalidTokenError, jwt.ImmatureSignatureError):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token expired or invalid")
     except PyJWTError:
@@ -116,9 +116,8 @@ def login_refresh_token_vue(token_data: RefreshToken, db: Session = Depends(get_
         raise credentials_exception
 
     access_token_expires = timedelta(minutes=config.ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user.email, "roles": user.roles}, user_id=user.id, expire_delta=access_token_expires
-    )
+    access_token_data = TokenData(user_id=user.id)
+    access_token = create_access_token(data=access_token_data.to_dict(), expire_delta=access_token_expires)
     return {"access_token": access_token}
 
 
@@ -130,7 +129,7 @@ def test_token(current_user: DBUser = Depends(get_current_user)):
     return current_user
 
 
-@router.post("/password-recovery/{email}", response_model=Msg)
+@router.post("/password-recovery/{email}", response_model=Message)
 def recover_password(request: Request, backgroud_tasks: BackgroundTasks, email: str, db: Session = Depends(get_db)):
     """
     Эндпойнт для сброса пароля
@@ -161,20 +160,20 @@ def recover_password(request: Request, backgroud_tasks: BackgroundTasks, email: 
     logger.info(f"Reset token {password_reset_token}")
     backgroud_tasks.add_task(send_reset_password_email, email_to=user.email, email=email, token=password_reset_token, \
                              front_url=frontend_url)
-    return {"msg": "Password recovery email sent"}
+    return {"message": "Password recovery email sent"}
 
 
 # endpoint for verification reset token
-@router.get("/reset-password/verify", response_model=Msg)
+@router.get("/reset-password/verify", response_model=Message)
 def reset_password_verify_token(token: str = Body(...), db: Session = Depends(get_db)):
     email = verify_password_reset_token(token)
     if not email:
         raise HTTPException(status_code=400, detail="Invalid token")
     # return resonse with code 200 and message about valid token
-    return {"msg": "Token is valid"}
+    return {"message": "Token is valid"}
 
 
-@router.post("/reset-password", response_model=Msg)
+@router.post("/reset-password", response_model=Message)
 def reset_password(token: str = Body(...), new_password: str = Body(...), db: Session = Depends(get_db)):
     """
     Эндпойнт для сброса пароля по ссылке полученной из /password-recovery/{email}".
@@ -204,7 +203,7 @@ def reset_password(token: str = Body(...), new_password: str = Body(...), db: Se
     hashed_password = get_password_hash(new_password)
     user.hashed_password = hashed_password
     db.commit()
-    return {"msg": "Password updated successfully"}
+    return {"message": "Password updated successfully"}
 
 
 
