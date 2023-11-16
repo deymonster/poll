@@ -2,9 +2,6 @@
 
 set -e
 
-if [ ! -d "static" ]; then
-  mkdir static
-fi
 
 alembic upgrade head
 
