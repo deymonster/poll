@@ -36,7 +36,6 @@ media_path = os.path.abspath("media")
 
 app.mount("/media", StaticFiles(directory=media_path), name="media")
 
-app.mount("/static", StaticFiles(directory="static", html=True), name="static")
 
 
 @app.middleware("http")
