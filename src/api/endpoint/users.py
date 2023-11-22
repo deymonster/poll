@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from fastapi import Request
 from starlette.responses import JSONResponse
 
-from base.schemas import Message
+from base.schemas import Message, TokenVerificationResponse
 from core import config
 from core.security import get_password_hash
 from utils import send_new_account_email, generate_registration_token, verify_registration_token, \
@@ -76,7 +76,9 @@ def pre_register_user(
     {
     "email": "popov@nitshop.ru",
     "full_name": "Попов Дмитрий",
-    "roles": ["ADMIN", "USER"]
+    "roles": ["ADMIN", "USER"],
+    "company_id": 1
+
     }
     """
     # restrict access for superadmin and admin
@@ -94,7 +96,7 @@ def pre_register_user(
 
 
 # endpoint for verification registration token
-@router.post("/register/verify", response_model=Message)
+@router.post("/register/verify", response_model=TokenVerificationResponse)
 def verify_token(token_data: TokenData):
     """ Эндпойнт для проверки токена регистрации
 
@@ -106,8 +108,13 @@ def verify_token(token_data: TokenData):
     }
     """
     try:
-        email, roles, admin_email = verify_registration_token(token_data.token)
-        return {"message": "Token is valid"}
+        email, roles, company_id = verify_registration_token(token_data.token)
+        return TokenVerificationResponse(
+            message="Token is valid",
+            email=email,
+            roles=roles,
+            company_id=company_id
+        )
     except TokenExpiredError as e:
         return JSONResponse(status_code=400, content={"message": str(e)})
     except CustomInvalidTokenError as e:
@@ -150,7 +157,7 @@ def complete_registration(data: RegistrationCompletion,
             detail="The user with this username already exists in the system.",
         )
     if not email or not roles:
-        raise HTTPException(status_code=400, detail="Invalid or expired token")
+        raise HTTPException(р)
     # hash new password
     hashed_password = get_password_hash(data.password)
     # create new user

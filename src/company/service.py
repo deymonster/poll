@@ -28,11 +28,12 @@ def create_new_company(db: Session, data: schemas.CompanyCreate):
     :param data:
     :return: new company
     """
+    # TODO добавить проверку компании по ИНН если она уже есть то ошибку return
     new_company = models.Company(**data.dict())
     db.add(new_company)
     db.commit()
     db.refresh(new_company)
-    return new_company
+    return new_company.id
 
 
 # get company by id

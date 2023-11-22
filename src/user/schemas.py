@@ -47,6 +47,7 @@ class UserCreateByEmail(UserBase):
     User create model by email
     """
     email: str
+    company_id: int
 
 
 class UserUpdate(UserBase):
