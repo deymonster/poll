@@ -37,7 +37,6 @@ media_path = os.path.abspath("media")
 app.mount("/media", StaticFiles(directory=media_path), name="media")
 
 
-
 @app.middleware("http")
 async def db_session_middleware(request: Request, call_next):
     response = Response("Internal server error", status_code=500)

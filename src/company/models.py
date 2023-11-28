@@ -17,6 +17,7 @@ class Company(Base):
     actual_address = Column(String, comment="Фактический адрес")
     phone = Column(String, comment="Телефон")
     director_name = Column(String, comment="Ф.И.О руководителя")
+    admin_name = Column(String, comment="Ф.И.О админинистратора")
     admin_email = Column(String, unique=True, index=True, comment="Почта для регистрации админа")
     licenses = Column(Integer, default=0, comment="Количество лицензий")
     users = relationship("User", back_populates="company")

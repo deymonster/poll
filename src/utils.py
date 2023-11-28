@@ -144,19 +144,19 @@ def send_new_account_complete_registration_email(email_to: str, email: str, full
 
 
 # generate registration token
-def generate_registration_token(email: str, roles: List[UserRole], admin: str) -> str:
+def generate_registration_token(email: str, roles: List[UserRole], company_id: int) -> str:
     """
     Генерация токена при регистрации пользователя
 
     :param email: email пользователя
     :param roles: список ролей пользователя
-    :param admin: email администратора
+    :param company_id: id  компании
     :return: токен
     """
     data = {
         "sub": email,
         "roles": roles,
-        "admin_email": admin,
+        "company_id": company_id,
         "exp": datetime.utcnow() + timedelta(hours=config.EMAIL_REGISTER_TOKEN_EXPIRE_HOURS),
         # "exp": datetime.utcnow() + timedelta(minutes=1), # expiration time for testing
 
@@ -177,12 +177,12 @@ def verify_registration_token(token: str) -> Tuple[str, List[str], str]:
         decoded_token = jwt.decode(token, config.SECRET_KEY, algorithm="HS256")
         email = decoded_token["sub"]
         roles = decoded_token["roles"]
-        admin_email = decoded_token["admin_email"]
-        return email, roles, admin_email
+        company_id = decoded_token["company_id"]
+        return email, roles, company_id
     except jwt.ExpiredSignatureError:
-        decoded_token = jwt.decode(token, config.SECRET_KEY, algorithms=["HS256"], options={"verify_exp": False})
-        admin_email = decoded_token.get("admin_email", "Unknown admin")
-        raise TokenExpiredError(f"Token expired. Please request a new one from {admin_email}")
+        # decoded_token = jwt.decode(token, config.SECRET_KEY, algorithms=["HS256"], options={"verify_exp": False})
+        # admin_email = decoded_token.get("sub", "Unknown admin")
+        raise TokenExpiredError("Token expired. Please request a new one")
     except jwt.InvalidTokenError:
         raise CustomInvalidTokenError("Invalid token")
 

@@ -4,6 +4,8 @@ from company import schemas
 from company import models as company_models
 from fastapi import HTTPException
 from user import models
+from user.models import User
+
 
 # TODO оформить все эти функции в метода класса Company с наследованием от базового класса Base!!!
 
@@ -28,11 +30,12 @@ def create_new_company(db: Session, data: schemas.CompanyCreate):
     :param data:
     :return: new company
     """
+    # TODO добавить проверку компании по ИНН если она уже есть то ошибку return
     new_company = models.Company(**data.dict())
     db.add(new_company)
     db.commit()
     db.refresh(new_company)
-    return new_company
+    return new_company.id
 
 
 # get company by id
@@ -50,12 +53,23 @@ def get_company_by_id(db: Session, company_id: int):
     return db_company
 
 
+def get_company_by_inn(db: Session, inn: str):
+    """ Получение компании по ИНН
+    :param  db: Session
+    :param inn: INN company
+    :return company
+    """
+    db_company = db.query(models.Company).filter_by(inn=inn).first()
+    if db_company:
+        return db_company
+
+
 # update company by id
 def update_company_by_id(db: Session, company_id: int, data: schemas.CompanyUpdate):
     """
     Обновить компанию по id
 
-    :param db:
+    :param db: Session
     :param company_id:
     :param data: схема CompanyUpdate
     :return: updated company
@@ -65,6 +79,25 @@ def update_company_by_id(db: Session, company_id: int, data: schemas.CompanyUpda
         setattr(db_company, field, value)
     db.commit()
     db.refresh(db_company)
+    return db_company
+
+
+def update_company_status(db: Session, company_id: int, payload_status: schemas.CompanyStatusUpdate):
+    """
+    Обновление статуса компании и всех ее пользователей
+    :param db: Session
+    :param company_id:  Company ID
+    :param payload_status: Status - True or False
+    """
+    db_company = db.query(models.Company).filter_by(id=company_id).first()
+    if not db_company:
+        raise HTTPException(status_code=404, detail="Company not found")
+    db_company.subscription_active = payload_status.company_status
+    users = db.query(User).filter(User.company_id == company_id).all()
+
+    for user in users:
+        user.is_active = payload_status.company_status
+    db.commit()
     return db_company
 
 
@@ -143,3 +176,17 @@ def add_invitation(db: Session, company_id: int, email: str, token: str):
     db.refresh(db_invitation)
     return db_invitation
 
+
+def delete_invitation(db: Session, email: str):
+    """
+    Удалаяем приглашение по email
+    :param db: Session
+    :param email: user email
+    :return db_invitation
+    """
+    db_invitation = db.query(company_models.Invitations).filter_by(email=email).first()
+    if not db_invitation:
+        raise HTTPException(status_code=404, detail="Invitation not found")
+    db.delete(db_invitation)
+    db.commit()
+    return db_invitation

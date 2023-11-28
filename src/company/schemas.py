@@ -18,6 +18,7 @@ class CompanyCreate(CamelModelMixin):
     actual_address: str
     phone: str
     director_name: str
+    admin_name: str
     admin_email: constr(pattern=r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$')
     licenses: int = 0
     subscription_start: Optional[datetime] = None
@@ -54,6 +55,7 @@ class CompanyUpdate(CamelModelMixin):
     subscription_active: Optional[bool] = None
 
 
-
+class CompanyStatusUpdate(CamelModelMixin):
+    company_status: bool = False
 
 

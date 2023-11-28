@@ -13,7 +13,7 @@
 
 3. **Укажите имя дистрибутива Linux, который установить в WSL. Например:**
    ```bash
-   wsl --install Ununtu
+   wsl --install Ubuntu
 4. **Установите Ubuntu в WSL:**
    ```bash
    wsl --install Ubuntu
@@ -136,8 +136,9 @@ Swagger будет доступен по адресу:
 
 После старта вам будет доступен пользователь с максимальными правами:
 
- - LOGIN -  admin@email.com
- - PASSWORD  -  1Q2w3e4r
+ - LOGIN -  super@user.me
+ - PASSWORD  -  qwe123QWE
+
 
 
 Все вопросы пишем сюда -> [https://t.me/Deymonster](URL)

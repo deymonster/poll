@@ -237,13 +237,16 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
                     )
                 obj_in.roles = [UserRole.USER]
             case _ if UserRole.SUPERADMIN in current_user.roles:
-                obj_in.roles = [UserRole.USER]
+                if UserRole.ADMIN in obj_in.roles:
+                    obj_in.roles = [UserRole.ADMIN]
+                else:
+                    obj_in.roles = [UserRole.USER]
             case _:
                 raise HTTPException(status_code=403, detail="Unknown user role")
         registration_token = generate_registration_token(email=obj_in.email,
                                                          roles=obj_in.roles,
-                                                         admin=current_user.email)
-        add_invitation(db=db_session, email=obj_in.email, token=registration_token, company_id=current_user.company_id)
+                                                         company_id=obj_in.company_id)
+        add_invitation(db=db_session, email=obj_in.email, token=registration_token, company_id=obj_in.company_id)
         referer = request.headers.get("Referer")
         frontend_url = f"{urlparse(referer).scheme}://{urlparse(referer).netloc}"
         logger.info(f"Reset token {registration_token}")

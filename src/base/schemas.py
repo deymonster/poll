@@ -37,4 +37,9 @@ class Message(CamelModelMixin):
     msg: str
 
 
+class TokenVerificationResponse(CamelModelMixin):
+    message: str
+    email: str
+    roles: List[str]
+    company_id: int
 

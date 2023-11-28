@@ -9,7 +9,8 @@ from sqlalchemy.orm import Session
 from fastapi import Request
 from starlette.responses import JSONResponse
 
-from base.schemas import Message
+from base.schemas import Message, TokenVerificationResponse
+from company.service import delete_invitation
 from core import config
 from core.security import get_password_hash
 from utils import send_new_account_email, generate_registration_token, verify_registration_token, \
@@ -76,7 +77,9 @@ def pre_register_user(
     {
     "email": "popov@nitshop.ru",
     "full_name": "Попов Дмитрий",
-    "roles": ["ADMIN", "USER"]
+    "roles": ["ADMIN", "USER"],
+    "company_id": 1
+
     }
     """
     # restrict access for superadmin and admin
@@ -88,13 +91,14 @@ def pre_register_user(
                                 current_user=current_user,
                                 obj_in=user_in,
                                 background_tasks=background_tasks)
+
         return JSONResponse(status_code=201, content={"message": "Email was sent to user"})
     except HTTPException as e:
         return JSONResponse(status_code=e.status_code, content={"message": e.detail})
 
 
 # endpoint for verification registration token
-@router.post("/register/verify", response_model=Message)
+@router.post("/register/verify", response_model=TokenVerificationResponse)
 def verify_token(token_data: TokenData):
     """ Эндпойнт для проверки токена регистрации
 
@@ -106,12 +110,17 @@ def verify_token(token_data: TokenData):
     }
     """
     try:
-        email, roles, admin_email = verify_registration_token(token_data.token)
-        return {"message": "Token is valid"}
+        email, roles, company_id = verify_registration_token(token_data.token)
+        return TokenVerificationResponse(
+            message="Token is valid",
+            email=email,
+            roles=roles,
+            company_id=company_id
+        )
     except TokenExpiredError as e:
-        return JSONResponse(status_code=400, content={"message": str(e)})
+        return JSONResponse(status_code=401, content={"message": str(e)})
     except CustomInvalidTokenError as e:
-        return JSONResponse(status_code=400, content={"message": str(e)})
+        return JSONResponse(status_code=401, content={"message": str(e)})
 
 
 # endpoint for complete registration with token and password
@@ -143,31 +152,39 @@ def complete_registration(data: RegistrationCompletion,
     "full_name": "Петрова Анна Юрьевна"
     }
     """
-    email, roles, admin_email = verify_registration_token(data.token)
-    if crud_user.get_by_email(db, email=email):
-        raise HTTPException(
-            status_code=409,
-            detail="The user with this username already exists in the system.",
-        )
-    if not email or not roles:
-        raise HTTPException(status_code=400, detail="Invalid or expired token")
-    # hash new password
-    hashed_password = get_password_hash(data.password)
-    # create new user
-    user_in = DBUser(full_name=data.full_name,
-                     email=email,
-                     hashed_password=hashed_password,
-                     is_active=True,
-                     roles=roles,
-                     company_id=data.company_id)
-    db.add(user_in)
-    db.commit()
-    # send email about successful registration in background
-    background_tasks.add_task(send_new_account_complete_registration_email,
-                              email_to=user_in.email,
-                              email=user_in.email,
-                              full_name=user_in.full_name)
-    return JSONResponse(status_code=201, content={"message": "User created successfully"})
+    try:
+        email, roles, company_id = verify_registration_token(data.token)
+        # if crud_user.get_by_email(db, email=email):
+        #     raise HTTPException(
+        #         status_code=409,
+        #         detail="The user with this username already exists in the system.",
+        #     )
+        if not roles:
+            raise HTTPException(
+                status_code=401,
+                detail="No email or roles provided")
+        # hash new password
+        hashed_password = get_password_hash(data.password)
+        # create new user
+        user_in = DBUser(full_name=data.full_name,
+                         email=email,
+                         hashed_password=hashed_password,
+                         is_active=True,
+                         roles=roles,
+                         company_id=data.company_id)
+        db.add(user_in)
+        db.commit()
+        delete_invitation(db, email=email)
+        # send email about successful registration in background
+        background_tasks.add_task(send_new_account_complete_registration_email,
+                                  email_to=user_in.email,
+                                  email=user_in.email,
+                                  full_name=user_in.full_name)
+        return JSONResponse(status_code=201, content={"message": "User created successfully"})
+    except TokenExpiredError as e:
+        return JSONResponse(status_code=401, content={"message": str(e)})
+    except CustomInvalidTokenError as e:
+        return JSONResponse(status_code=401, content={"message": str(e)})
 
 
 @router.post("", response_model=User, status_code=201, deprecated=True)
