@@ -55,6 +55,7 @@ class CompanyUpdate(CamelModelMixin):
     subscription_active: Optional[bool] = None
 
 
-
+class CompanyStatusUpdate(CamelModelMixin):
+    company_status: bool = False
 
 

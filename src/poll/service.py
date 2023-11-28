@@ -166,7 +166,6 @@ def get_all_user_poll(db: Session, user_id: int, status: Optional[PollStatus] = 
 #     return polls, total_polls
 
 
-
 # get single poll with list of responses
 def get_single_poll_with_response(db: Session, poll_id: int, user_id: int):
     return db.query(models.Response).filter(models.Poll.id == poll_id).all()

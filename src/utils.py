@@ -180,9 +180,9 @@ def verify_registration_token(token: str) -> Tuple[str, List[str], str]:
         company_id = decoded_token["company_id"]
         return email, roles, company_id
     except jwt.ExpiredSignatureError:
-        decoded_token = jwt.decode(token, config.SECRET_KEY, algorithms=["HS256"], options={"verify_exp": False})
-        admin_email = decoded_token.get("admin_email", "Unknown admin")
-        raise TokenExpiredError(f"Token expired. Please request a new one from {admin_email}")
+        # decoded_token = jwt.decode(token, config.SECRET_KEY, algorithms=["HS256"], options={"verify_exp": False})
+        # admin_email = decoded_token.get("sub", "Unknown admin")
+        raise TokenExpiredError("Token expired. Please request a new one")
     except jwt.InvalidTokenError:
         raise CustomInvalidTokenError("Invalid token")
 
