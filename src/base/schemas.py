@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 from pydantic import Field
 from pydantic.main import BaseModel
@@ -41,5 +41,5 @@ class TokenVerificationResponse(CamelModelMixin):
     message: str
     email: str
     roles: List[str]
-    company_id: int
+    company_id: Optional[int] = None
 
