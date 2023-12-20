@@ -1,5 +1,5 @@
 
-from datetime import timedelta
+from datetime import timedelta, datetime
 from fastapi import Request
 import jwt
 from jwt import PyJWTError
@@ -24,9 +24,10 @@ from starlette.responses import Response, RedirectResponse, JSONResponse
 from urllib.parse import urlparse
 from fastapi import BackgroundTasks
 from api.utils.logger import PollLogger
+from pydantic import parse_obj_as
 
 # Logging
-logger = PollLogger(__name__).get_logger()
+logger = PollLogger(__name__)
 
 router = APIRouter()
 
@@ -61,7 +62,13 @@ def login_access_token_vue(
     refresh_token_expires = timedelta(minutes=config.REFRESH_TOKEN_EXPIRE_MINUTES)
     refresh_token_data = TokenData(user_id=user.id)
     refresh_token = create_refresh_token(data=refresh_token_data.to_dict(), expire_delta=refresh_token_expires)
-
+    logger.info(f"Refresh token - {refresh_token}")
+    logger.info(event_type="User authorization",
+                obj={user.full_name},
+                subj={user.full_name},
+                action="User successfully authorized!",
+                additional_info=f"{user.email}"
+                )
     return {
         "message": "Login successfull",
         "access_token": access_token,
@@ -147,7 +154,7 @@ def recover_password(request: Request, backgroud_tasks: BackgroundTasks, email: 
     3. Отправляем письмо на почту пользователя с ссылкой для сброса пароля
     """
     user = crud_user.get_by_email(db, email=email)
-    logger.info(f"User  get by email {user}")
+    # logger.info(f"User  get by email {user}")
     if not user:
         raise HTTPException(
             status_code=404,
@@ -157,7 +164,7 @@ def recover_password(request: Request, backgroud_tasks: BackgroundTasks, email: 
     # TODO: add checking for empty referer etc
     frontend_url = f"{urlparse(referer).scheme}://{urlparse(referer).netloc}"
     password_reset_token = generate_password_reset_token(email=email)
-    logger.info(f"Reset token {password_reset_token}")
+    # logger.info(f"Reset token {password_reset_token}")
     backgroud_tasks.add_task(send_reset_password_email, email_to=user.email, email=email, token=password_reset_token, \
                              front_url=frontend_url)
     return {"message": "Password recovery email sent"}

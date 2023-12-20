@@ -1,5 +1,6 @@
 from typing import Optional, List
 from urllib.parse import urlparse
+from datetime import datetime
 
 from fastapi import HTTPException, Request, BackgroundTasks
 
@@ -16,7 +17,7 @@ from utils import generate_registration_token, send_new_account_email
 
 
 # Logging
-logger = PollLogger(__name__).get_logger()
+logger = PollLogger(__name__)
 
 
 def check_user_role(user: User, required_roles: List[UserRole]):
@@ -168,7 +169,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         # check if user with this email exists and if new email is not the same as in db
         user = self.get_by_email(db_session, email=update_data.email)
         if user and user.id != db_obj.id:
-            logger.info(f"User with this email already exists")
+            #logger.info(f"User with this email already exists")
             raise HTTPException(status_code=409, detail="The user with this email already exists")
         match True:
             case _ if UserRole.SUPERADMIN in current_user.roles:
@@ -245,11 +246,15 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
                 raise HTTPException(status_code=403, detail="Unknown user role")
         registration_token = generate_registration_token(email=obj_in.email,
                                                          roles=obj_in.roles,
+                                                         full_name=obj_in.full_name,
                                                          company_id=obj_in.company_id)
+        if isinstance(registration_token, bytes):
+            registration_token = registration_token.decode('utf-8')
+
         add_invitation(db=db_session, email=obj_in.email, token=registration_token, company_id=obj_in.company_id)
         referer = request.headers.get("Referer")
         frontend_url = f"{urlparse(referer).scheme}://{urlparse(referer).netloc}"
-        logger.info(f"Reset token {registration_token}")
+
         # send email with registration link in background
         background_tasks.add_task(send_new_account_email,
                                   email_to=obj_in.email,
@@ -257,6 +262,13 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
                                   email=obj_in.email,
                                   link=frontend_url,
                                   token=registration_token)
+
+        logger.info(event_type="User registration",
+                    obj=f"{current_user.full_name}",
+                    subj=f"{obj_in.full_name}",
+                    action="Registration email sent to user",
+                    additional_info="")
+
         return {"message": "Registration email sent to user"}
 
 

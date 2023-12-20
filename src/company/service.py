@@ -5,6 +5,7 @@ from company import models as company_models
 from fastapi import HTTPException
 from user import models
 from user.models import User
+from company.models import Invitations
 
 
 # TODO оформить все эти функции в метода класса Company с наследованием от базового класса Base!!!
@@ -190,3 +191,27 @@ def delete_invitation(db: Session, email: str):
     db.delete(db_invitation)
     db.commit()
     return db_invitation
+
+
+def change_invitation_status(db: Session, email: str):
+    """
+    Меняем статус приглашения на неактивный
+    :param db: Session
+    :param email: User email
+    :return:
+    """
+    db_invitation = db.query(company_models.Invitations).filter_by(email=email).first()
+    if not db_invitation:
+        raise HTTPException(status_code=404, detail="Invitation not found")
+    db_invitation.is_active = False
+    db.commit()
+    return db_invitation
+
+
+def get_invitation_by_token(db: Session, token: str) -> Invitations:
+    """ Получаем активное приглашение по токена
+    :param db: Session
+    :param token: Toke
+    :return Invitation model
+    """
+    return db.query(company_models.Invitations).filter(company_models.Invitations.token == token).first()

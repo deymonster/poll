@@ -3,10 +3,12 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from sqlalchemy.orm import Session
 from company import models
 from api.utils.logger import PollLogger
+from core import config
 from db.session import SessionLocal
 
 # Logging
-logger = PollLogger(__name__).get_logger()
+custom_logger = PollLogger(__name__)
+logger = PollLogger(__name__)
 
 
 def check_expired_invitations():
@@ -17,16 +19,29 @@ def check_expired_invitations():
     :return: None
     """
     db = SessionLocal()
-    logger.info(f'Begin to Check expired invitations')
     try:
+        logger.info(event_type="Checking invitation",
+                    obj="",
+                    subj=f"{config.PROJECT_NAME}",
+                    action="",
+                    additional_info=""
+                    )
+        # custom_logger.log_event(event_type="Проверка приглашений",
+        #                         object_info="",
+        #                         subject_info=f"{config.PROJECT_NAME}",
+        #                         action_info="",
+        #                         additional_info="")
         expired_invitations = db.query(models.Invitations).filter(models.Invitations.expires_at < datetime.utcnow()).all()
         for invitation in expired_invitations:
-            logger.info(f'Delete invitation {invitation.email}')
+            # logger.info(f'Delete invitation {invitation.email}')
             db.delete(invitation)
         db.commit()
-        logger.info(f'End to Check expired invitations')
+
     except Exception as e:
-        logger.error(f'Error in check_expired_invitations: {e}')
+
+        logger.error(f"Event Type: Проверка приглашений | Object: {None}"
+                     f"| Subject: {config.PROJECT_NAME} | Action: Ошибка при проверке просроченных приглашений"
+                     f"| Additional Information: {e}")
     finally:
         db.close()
 

@@ -25,7 +25,7 @@ from uuid import UUID
 from api.utils.logger import PollLogger
 
 # Logging
-logger = PollLogger(__name__).get_logger()
+logger = PollLogger(__name__)
 
 router = APIRouter()
 
@@ -376,7 +376,7 @@ def create_poll_response(poll_id: int, poll_responses: schemas.CreatePollRespons
     :param user: Текущий активный пользователь
     :return message: Сообщение об  успешном создании ответов на все вопросы опроса
     """
-    logger.info(f"Poll responses {poll_responses}")
+    #logger.info(f"Poll responses {poll_responses}")
     service.create_new_response(db=db, poll_responses=poll_responses, poll_id=poll_id, user_id=user.id)
     return JSONResponse(status_code=201, content={"message": "Response created successfully"})
 
