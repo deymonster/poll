@@ -10,7 +10,7 @@ from fastapi import Request
 from starlette.responses import JSONResponse
 
 from base.schemas import Message, TokenVerificationResponse
-from company.service import delete_invitation
+from company.service import delete_invitation, get_invitation_by_token, change_invitation_status
 from core import config
 from core.security import get_password_hash
 from utils import send_new_account_email, generate_registration_token, verify_registration_token, \
@@ -23,10 +23,10 @@ from user.schemas import User, UserCreate, UserUpdate, TokenData, RegistrationCo
 from user.service import crud_user
 from fastapi import BackgroundTasks
 from api.utils.logger import PollLogger
-from core.exceptions import TokenError, TokenExpiredError, CustomInvalidTokenError
+from core.exceptions import TokenError, TokenExpiredError, CustomInvalidTokenError, NoInvitiationError
 
 # Logging
-logger = PollLogger(__name__).get_logger()
+logger = PollLogger(__name__)
 
 router = APIRouter()
 
@@ -99,10 +99,12 @@ def pre_register_user(
 
 # endpoint for verification registration token
 @router.post("/register/verify", response_model=TokenVerificationResponse)
-def verify_token(token_data: TokenData):
+def verify_token(token_data: TokenData,
+                 db: Session = Depends(get_db)):
     """ Эндпойнт для проверки токена регистрации
 
     :param token_data: Схема для проверки токена регистрации
+    :param db: Session
     :return возвращает сообщение о валидности токена
     Пример тела запроса:
     {
@@ -110,7 +112,13 @@ def verify_token(token_data: TokenData):
     }
     """
     try:
-        email, roles, company_id = verify_registration_token(token_data.token)
+        email, roles, full_name, company_id = verify_registration_token(token_data.token)
+        invitation = get_invitation_by_token(db, token_data.token)
+
+        if not invitation or not invitation.is_active:
+            raise HTTPException(
+                status_code=401,
+                detail="Invitation not found or not active")
         return TokenVerificationResponse(
             message="Token is valid",
             email=email,
@@ -153,7 +161,7 @@ def complete_registration(data: RegistrationCompletion,
     }
     """
     try:
-        email, roles, company_id = verify_registration_token(data.token)
+        email, roles, full_name, company_id = verify_registration_token(data.token)
         # if crud_user.get_by_email(db, email=email):
         #     raise HTTPException(
         #         status_code=409,
@@ -166,7 +174,7 @@ def complete_registration(data: RegistrationCompletion,
         # hash new password
         hashed_password = get_password_hash(data.password)
         # create new user
-        user_in = DBUser(full_name=data.full_name,
+        user_in = DBUser(full_name=full_name,
                          email=email,
                          hashed_password=hashed_password,
                          is_active=True,
@@ -174,12 +182,22 @@ def complete_registration(data: RegistrationCompletion,
                          company_id=data.company_id)
         db.add(user_in)
         db.commit()
-        delete_invitation(db, email=email)
+        # delete invitation record
+        # delete_invitation(db, email=email)
+        # change invitation status
+        change_invitation_status(db, email=email)
         # send email about successful registration in background
         background_tasks.add_task(send_new_account_complete_registration_email,
                                   email_to=user_in.email,
                                   email=user_in.email,
                                   full_name=user_in.full_name)
+        logger.info(
+            event_type="User registration",
+            obj=f"{user_in.full_name}",
+            subj="",
+            action="User created successfully",
+            additional_info=f"{user_in.email}"
+        )
         return JSONResponse(status_code=201, content={"message": "User created successfully"})
     except TokenExpiredError as e:
         return JSONResponse(status_code=401, content={"message": str(e)})

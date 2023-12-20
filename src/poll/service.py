@@ -19,7 +19,7 @@ from .schemas import QuestionType
 from api.utils.logger import PollLogger
 
 # Logging
-logger = PollLogger(__name__).get_logger()
+logger = PollLogger(__name__)
 
 
 # TODO доделать класс CRUDBase для Poll
@@ -185,7 +185,7 @@ def get_poll_detail(db: Session, poll_id: int, user_id: int):
         "poll_url": poll.poll_url,
         "user_id": user_id,
         "question_count": db.query(models.Question).filter(models.Question.poll_id == poll_id).count()}
-    logger.info(poll_data)
+    #logger.info(poll_data)
     return poll_data
 
 
@@ -203,7 +203,7 @@ def get_poll_questions_paginated(db: Session, poll_uuid: UUID, page: int = 1, pa
         .order_by(models.Question.id))
     questions = questions.offset((page - 1) * page_size).limit(page_size).all()
     total_questions = db.query(models.Question).filter(models.Question.poll_id == poll.id).count()
-    logger.info(f"Total questions {total_questions}")
+    #logger.info(f"Total questions {total_questions}")
     return questions, total_questions
 
 
@@ -581,7 +581,7 @@ def handle_single_choice_response(db, db_question: models.Question, response_dat
     :param response_data: общая схема для создания ответа на вопрос
     :return create_response
     """
-    logger.info(response_data.choice_id)
+    #logger.info(response_data.choice_id)
     # check that response data has only choice_id for single choice question
     if not (response_data.choice_id or response_data.choice_ids) or response_data.choice_text or response_data.choice_texts:
         raise HTTPException(status_code=400, detail="Invalid answer data for single choice question")

@@ -20,7 +20,7 @@ if not SECRET_KEY:
     SECRET_KEY = os.urandom(32)
 
 # Token 60 minutes * 24 hours * 8 days = 8 days
-ACCESS_TOKEN_EXPIRE_MINUTES = 15
+ACCESS_TOKEN_EXPIRE_MINUTES = 1
 
 # Token 60 minutes * 24 hours * 14 days = 14 days
 REFRESH_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7
@@ -55,3 +55,7 @@ EMAILS_ENABLED = bool(SMTP_HOST) and bool(SMTP_PORT) and bool(EMAILS_FROM_EMAIL)
 
 FIRST_SUPERUSER = os.getenv("FIRST_SUPERUSER")
 FIRST_SUPERUSER_PASSWORD = os.getenv("FIRST_SUPERUSER_PASSWORD")
+
+LOG_FILE_PATH = os.getenv("LOG_FILE_PATH")
+
+

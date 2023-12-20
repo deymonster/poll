@@ -15,3 +15,13 @@ class TokenExpiredError(TokenError):
 class CustomInvalidTokenError(TokenError):
     """Исключение для недействительного токена."""
     pass
+
+
+class InactiveInvitationError(TokenError):
+    """Исключение для неактивного приглашения"""
+    pass
+
+
+class NoInvitiationError(TokenError):
+    """ Исключение для отсуствуещего приглашеия"""
+    pass

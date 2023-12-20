@@ -1,7 +1,7 @@
 from db.base_class import Base
 from enum import Enum
 from sqlalchemy.dialects.postgresql import ENUM, UUID
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, DateTime, JSON
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, DateTime, JSON, Text
 from sqlalchemy.orm import relationship
 from datetime import datetime, timedelta
 
@@ -36,6 +36,7 @@ class Invitations(Base):
     company_id: int = Column(Integer, ForeignKey('company.id'))
     email: str = Column(String, index=True)
     expires_at: datetime = Column(DateTime, default=datetime.utcnow() + timedelta(hours=48))
-    token: str = Column(String, unique=True)
+    token: str = Column(Text, unique=True)
+    is_active: bool = Column(Boolean, default=True)
     company = relationship("Company", back_populates="invitations")
 

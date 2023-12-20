@@ -31,7 +31,7 @@ from fastapi.openapi.models import OAuthFlows as OAuthFlowsModel
 from api.utils.logger import PollLogger
 
 # Logging
-logger = PollLogger(__name__).get_logger()
+logger = PollLogger(__name__)
 
 
 # reusable_oauth2 = OAuth2PasswordBearer(tokenUrl="/login/access-token")
