@@ -49,7 +49,7 @@ class UserCreateByEmail(UserBase):
     User create model by email
     """
     email: str
-    company_id: int
+    company_id: Optional[int] = None
 
 
 class UserUpdate(UserBase):
