@@ -40,8 +40,8 @@ class ChoiceDelete(Choice):
 class QuestionType(str, Enum):
     SINGLE = "SINGLE ANSWER"
     PLURAL = "PLURAL ANSWER"
-    FREE = "FREE ANSWER"
-    FREE_TEXT = "FREE TEXT ANSWER"
+    PLURAL_TEXT = "PLURAL TEXT"
+    SINGLE_TEXT = "SINGLE TEXT"
 
 
 class StatusPoll(str, Enum):

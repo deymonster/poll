@@ -97,7 +97,7 @@ def update_poll(poll_id: int,
     :param poll_data Данные для обновления опроса
     :param db: Сессия базы данных
     :param user: Текущий активный пользователь
-    :return message Сообщение об  успешном удалении опроса
+    :return message Сообщение об  успешном обновлении опроса
     """
     try:
         poll = service.update_poll(db=db, poll_id=poll_id, poll=poll_data, user_id=user.id)

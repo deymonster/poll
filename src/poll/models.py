@@ -11,8 +11,8 @@ from user.models import User
 class TypeQuestion(str, Enum):
     SINGLE = 'SINGLE ANSWER'
     PLURAL = 'PLURAL ANSWER'
-    FREE = 'FREE ANSWER'            # multiple text fields for answer
-    FREE_TEXT = 'FREE TEXT ANSWER'  # one text field for answer
+    PLURAL_TEXT = 'PLURAL TEXT'            # multiple text fields for answer
+    SINGLE_TEXT = 'SINGLE TEXT'  # one text field for answer
 
 
 class PollStatus(str, Enum):
