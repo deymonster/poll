@@ -123,6 +123,7 @@ def verify_token(token_data: TokenData,
             message="Token is valid",
             email=email,
             roles=roles,
+            full_name=full_name,
             company_id=company_id
         )
     except TokenExpiredError as e:

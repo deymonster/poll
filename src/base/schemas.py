@@ -41,5 +41,6 @@ class TokenVerificationResponse(CamelModelMixin):
     message: str
     email: str
     roles: List[str]
+    full_name: str
     company_id: Optional[int] = None
 
