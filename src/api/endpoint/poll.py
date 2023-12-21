@@ -59,12 +59,17 @@ def create_poll(
         user: User = Depends(get_current_active_user)
 ):
     """
-    Эндпоинт для создания нового опроса c названием пользователем
+    Эндпоинт для создания нового опроса c названием и описание
 
     :param poll_data: Данные опроса -  название и описание
     :param db: Сессия базы данных
     :param user: Текущий активнеы пользователь
     :return: Созданный опрос
+    Пример создания опроса:
+        {"title": "Название нового опроса1",
+        "description": "Тут небольшое описание опроса"
+        }
+
     """
     try:
         service.create_new_simple_poll(db=db, poll=poll_data, user_id=user.id)

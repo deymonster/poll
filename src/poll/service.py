@@ -400,7 +400,7 @@ def create_single_question(
     :param question_data: схема вопроса
     :return db_question: Вопрос
     """
-    max_order = db.query(func.max(models.Question.order)).filter(models.Question.poll_id == poll_id).scalars() or 0
+    max_order = db.query(func.max(models.Question.order)).filter(models.Question.poll_id == poll_id).scalar() or 0
     new_order = max_order + 10
     db_poll = db.query(models.Poll).filter(models.Poll.id == poll_id, models.Poll.user_id == user_id).first()
     if not db_poll:
