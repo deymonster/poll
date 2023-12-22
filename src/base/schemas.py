@@ -34,7 +34,7 @@ class RefreshToken(CamelModelMixin):
 
 
 class Message(CamelModelMixin):
-    msg: str
+    message: str
 
 
 class TokenVerificationResponse(CamelModelMixin):
