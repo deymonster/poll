@@ -94,6 +94,7 @@ def create_company(
                 status_code=409,
                 detail="The user with this username already exists in the system.",
             )
+
         crud_user.register_user(db_session=db,
                                 request=request,
                                 current_user=current_user,

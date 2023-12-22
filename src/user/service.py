@@ -240,8 +240,11 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
             case _ if UserRole.SUPERADMIN in current_user.roles:
                 if UserRole.ADMIN in obj_in.roles:
                     obj_in.roles = [UserRole.ADMIN]
-                else:
+                if UserRole.SUPERADMIN in obj_in.roles:
+                    obj_in.roles = [UserRole.SUPERADMIN]
+                if UserRole.USER in obj_in.roles:
                     obj_in.roles = [UserRole.USER]
+
             case _:
                 raise HTTPException(status_code=403, detail="Unknown user role")
         registration_token = generate_registration_token(email=obj_in.email,
@@ -267,7 +270,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
                     obj=f"{current_user.full_name}",
                     subj=f"{obj_in.full_name}",
                     action="Registration email sent to user",
-                    additional_info="")
+                    additional_info=f"User role for new user - {obj_in.roles}")
 
         return {"message": "Registration email sent to user"}
 
