@@ -86,7 +86,7 @@ class RegistrationCompletion(CamelModelMixin):
     """
     token: str
     password: str
-    company_id: int
+    company_id: Optional[int] = None
     full_name: Optional[str] = None
 
 
