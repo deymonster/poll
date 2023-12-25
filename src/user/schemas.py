@@ -57,6 +57,7 @@ class UserUpdate(UserBase):
     User update model
     """
     password: Optional[str] = None
+    company_id: Optional[int] = None
 
 
 class User(UserBaseInDB):

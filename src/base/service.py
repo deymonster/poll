@@ -41,11 +41,19 @@ class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
     def update(
             self, db_session: Session, *, db_obj: ModelType, obj_in: UpdateSchemaType
                ) -> ModelType:
-        obj_data = jsonable_encoder(obj_in)
+        print(f"db_obj comes to update - {db_obj}")
+        print(f"obj_in comes to update - {obj_in}")
+        # obj_data = jsonable_encoder(obj_in)
+        obj_data = obj_in.model_dump(exclude_unset=True)
+        print(f"obj_data - {obj_data}")
         update_data = obj_in.model_dump(exclude_defaults=True)
-        for field in obj_data:
-            if field in update_data:
-                setattr(db_obj, field, update_data[field])
+        print(f"Update data - {update_data}")
+        print(f"DB_OBJ - {db_obj}")
+        for field, value in obj_data.items():
+            if hasattr(db_obj, field):
+                setattr(db_obj, field, value)
+            # if field in update_data:
+            #     setattr(db_obj, field, update_data[field])
         db_session.add(db_obj)
         db_session.commit()
         db_session.refresh(db_obj)

@@ -171,8 +171,12 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         if user and user.id != db_obj.id:
             #logger.info(f"User with this email already exists")
             raise HTTPException(status_code=409, detail="The user with this email already exists")
+        update_data.is_active = True
+        print(f"update_data in service - {update_data}")
+        print(f"db_obj - {db_obj}")
         match True:
             case _ if UserRole.SUPERADMIN in current_user.roles:
+
                 return super().update(db_session, db_obj=db_obj, obj_in=update_data)
             case _ if UserRole.ADMIN in current_user.roles:
                 if current_user.company_id != db_obj.company_id:

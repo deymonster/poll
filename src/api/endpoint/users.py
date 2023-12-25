@@ -242,16 +242,20 @@ def create_user(
 def update_user_me(
         user_id: Optional[int] = None,
         *,
+        request: Request,
         db: Session = Depends(get_db),
         user_in: UserUpdate,
+        background_tasks: BackgroundTasks,
         current_user: DBUser = Depends(get_current_active_user),
 ):
     """
     Эндпойнты для обновления конкретного пользователя по id  и второй для обновления текущего пользователя.
 
     :param user_id: ID пользователя - необязательный параметр для обновления пользователя по id
+     :param request:
     :param db: Сессия базы данных
     :param user_in: Данные для обновления пользователя
+    :param background_tasks:
     :param current_user: Текущий пользователь со статусом активный
     :return: Обновленный пользователь
 
@@ -267,6 +271,21 @@ def update_user_me(
     if not user_id:
         user_id = current_user.id
     user_to_update = crud_user.get_or_404(db, user_id=user_id, current_user=current_user)
+    if user_in.email != user_to_update.email:
+        # restrict access for superadmin and admin
+        get_current_user_with_roles(current_user, required_roles=[UserRole.SUPERADMIN, UserRole.ADMIN])
+
+        try:
+            crud_user.register_user(db_session=db,
+                                    request=request,
+                                    current_user=current_user,
+                                    obj_in=user_to_update,
+                                    background_tasks=background_tasks)
+
+            return JSONResponse(status_code=201, content={"message": "Email was sent to user"})
+        except HTTPException as e:
+            return JSONResponse(status_code=e.status_code, content={"message": e.detail})
+
     try:
         crud_user.update(db, current_user=current_user, db_obj=user_to_update, update_data=user_in)
         return JSONResponse(status_code=201, content={"message": "User updated successfully"})
