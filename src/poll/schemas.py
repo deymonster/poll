@@ -12,12 +12,9 @@ class ChoiceBase(CamelModelMixin):
     choice_cover: Optional[str] = None
 
 
-class Choice(ChoiceBase):
-    id: int
-    question_id: int
-
-    class Config:
-        from_attributes = True
+class Choice(CamelModelMixin):
+    text: str
+    choice_cover: Optional[str] = None
 
 
 class ChoiceCreate(CamelModelMixin):
@@ -55,7 +52,6 @@ class StatusPoll(str, Enum):
 class QuestionBase(CamelModelMixin):
     """Base model schemas question"""
 
-    id: int
     type: QuestionType
     text: str
     question_cover: Optional[str] = None
@@ -64,7 +60,6 @@ class QuestionBase(CamelModelMixin):
 
 
 class Question(QuestionBase):
-    poll_id: int
     choice: Optional[List[Choice]] = []
 
     class Config:
@@ -138,7 +133,7 @@ class Poll(CamelModelMixin):
     title: str
     description: Optional[str] = None
     poll_cover: Optional[str] = None
-    status_poll: StatusPoll = StatusPoll.DRAFT
+    poll_status: StatusPoll = StatusPoll.DRAFT
 
 
 class PollAllData(PollBase):
@@ -148,7 +143,11 @@ class PollAllData(PollBase):
         from_attributes = True
 
 
-class CreatePoll(Poll):
+class CreatePoll(CamelModelMixin):
+    title: str
+    description: Optional[str] = None
+    poll_cover: Optional[str] = None
+    poll_status: StatusPoll = StatusPoll.DRAFT
     question: Optional[List[Question]] = []
 
 

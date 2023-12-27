@@ -65,10 +65,11 @@ def create_new_poll(db: Session, poll: schemas.CreatePoll, user_id: int):
     :param user_id: int
     :return: Model Poll
     """
-    db_poll = models.Poll(**poll.model_dump(exclude={"questions"}), user_id=user_id)
+    db_poll = models.Poll(**poll.model_dump(exclude={"question"}), user_id=user_id)
     db.add(db_poll)
     db.commit()
     db.refresh(db_poll)
+
     create_question(db=db, questions=poll.question, poll_id=db_poll.id)
     return db_poll
 
@@ -453,14 +454,17 @@ def update_single_question(db: Session, poll_id: int, question_id: int, question
 
 
 # create list questions with nested choices - for creating poll
-def create_question(db: Session, questions: List[schemas.Question], poll_id: int) -> List[models.Question]:
+def create_question(db: Session, questions: List[schemas.Question], poll_id: int) -> None:
     db_questions = []
+
     for question in questions:
-        db_question = models.Question(**question.dict(exclude={"choices"}), poll_id=poll_id)
+
+        db_question = models.Question(**question.model_dump(exclude={"choice"}), poll_id=poll_id)
+
         db.add(db_question)
         db.flush()
         db.refresh(db_question)
-        db_choice = [models.Choice(**choice.dict(), question_id=db_question.id) for choice in question.choices]
+        db_choice = [models.Choice(**choice.model_dump(), question_id=db_question.id) for choice in question.choice]
         db.add_all(db_choice)
         db_questions.append(db_question)
     db.commit()
