@@ -272,11 +272,18 @@ def update_poll_status(db: Session, poll_id: int, payload_status: schemas.PollSt
     :param user_id:
     :return: db_poll
     """
-    db_poll = db.query(models.Poll).filter(models.Poll.id == poll_id).filter(models.Poll.user_id == user_id).first()
+    db_poll = db.query(models.Poll).filter(models.Poll.id == poll_id).filter(models.Poll.user_id == user_id)\
+        .options(joinedload(models.Poll.question)).first()
     if not db_poll:
         raise HTTPException(status_code=404, detail="Poll not found")
     # otherwise update poll
     if payload_status.poll_status:
+        if not db_poll.question:
+            raise HTTPException(status_code=400, detail="At least one question is required to publish the poll")
+        for question in db_poll.question:
+            if not question.choice:
+                raise HTTPException(status_code=400,
+                                    detail="Each question must have at least one choice to publish the poll")
         db_poll.poll_status = PollStatus.PUBLISHED
     else:
         db_poll.poll_status = PollStatus.DRAFT
