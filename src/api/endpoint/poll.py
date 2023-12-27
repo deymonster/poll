@@ -6,7 +6,7 @@ from starlette import status
 from starlette.responses import RedirectResponse, JSONResponse
 
 from base.schemas import Message
-from poll.schemas import QuestionPage, Question
+from poll.schemas import QuestionPage, Question, SinglePoll
 from api.utils.security import get_current_user, get_current_active_user
 from api.utils.db import get_db
 from poll import schemas, service
@@ -188,7 +188,7 @@ def delete_user_poll(poll_id: int, db: Session = Depends(get_db), user: User = D
 
 # Получение детальной информации об опросе
 @router.get("/user_polls/{poll_id}")
-def get_poll(poll_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_active_user)):
+def get_poll(poll_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_active_user)) -> SinglePoll:
     """ Эндпойнт для полуения детальной информации об опросе включая все вопросы и варианты ответы на них
     :param poll_id: Идентификатор опроса
     :param db: Сессия базы данных
@@ -202,7 +202,7 @@ def get_poll(poll_id: int, db: Session = Depends(get_db), user: User = Depends(g
 
 # QUESTIONS
 # endpoint for getting all questions from poll
-@router.get("/user_polls/{poll_id}/questions", response_model=List[schemas.Question])
+@router.get("/user_polls/{poll_id}/questions", response_model=List[schemas.Question], deprecated=True)
 def get_poll_questions(poll_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_active_user)):
     """ Эндпойнт для получения списка вопросов в опросе
     :param poll_id: Идентификатор опроса
@@ -214,7 +214,7 @@ def get_poll_questions(poll_id: int, db: Session = Depends(get_db), user: User =
 
 
 # endpoint for getting all questions from poll using uuid
-@router.get("/user_polls/uuid/{poll_uuid}/questions", response_model=List[schemas.Question])
+@router.get("/user_polls/uuid/{poll_uuid}/questions", response_model=List[schemas.Question], deprecated=True)
 def get_poll_questions_by_uuid(poll_uuid: UUID, db: Session = Depends(get_db)):
     """ Эндпойнт для получения списка вопросов в опросе
     :param poll_uuid: Идентификатор опроса
@@ -226,7 +226,7 @@ def get_poll_questions_by_uuid(poll_uuid: UUID, db: Session = Depends(get_db)):
 
 
 # endpoint for creating question of poll
-@router.post("/user_polls/{poll_id}/questions", response_model=schemas.Question)
+@router.post("/user_polls/{poll_id}/questions", response_model=schemas.Question, deprecated=True)
 def create_question(question: schemas.QuestionCreate, poll_id: int, db: Session = Depends(get_db),
                     user: User = Depends(get_current_active_user)
                     ):
@@ -263,7 +263,7 @@ def create_question(question: schemas.QuestionCreate, poll_id: int, db: Session 
 
 
 # endpoint for updating question of poll
-@router.put("/user_polls/{poll_id}/questions/{question_id}", response_model=schemas.Question)
+@router.put("/user_polls/{poll_id}/questions/{question_id}", response_model=schemas.Question, deprecated=True)
 def update_question(
         question_id: int,
         poll_id: int,
@@ -282,7 +282,7 @@ def update_question(
 
 
 # endpoint for deleting question from poll
-@router.delete("/user_polls/{poll_id}/questions/{question_id}", response_model=Message)
+@router.delete("/user_polls/{poll_id}/questions/{question_id}", response_model=Message, deprecated=True)
 def delete_question(poll_id: int, question_id: int, db: Session = Depends(get_db),
                     user: User = Depends(get_current_active_user)):
     """ Эндпойнт для удаления вопроса в опросе
