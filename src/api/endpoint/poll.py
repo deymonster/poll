@@ -55,7 +55,7 @@ def user_polls(db: Session = Depends(get_db), user: User = Depends(get_current_a
 # endpoint for adding new poll user for vue frontend
 @router.post("/user_polls")
 def create_poll(
-        poll_data: schemas.CreateSimplePoll, db: Session = Depends(get_db),
+        poll_data: schemas.CreatePoll, db: Session = Depends(get_db),
         user: User = Depends(get_current_active_user)
 ):
     """
@@ -67,12 +67,30 @@ def create_poll(
     :return: Созданный опрос
     Пример создания опроса:
         {"title": "Название нового опроса1",
-        "description": "Тут небольшое описание опроса"
+        "description": "Тут небольшое описание опроса",
+        "poll_cover": "Ссылка на картинку опроса",
+        "status_poll": "DRAFT",
+        "question": [
+            {"type": "SINGLE ANSWER",
+            "text": "Сколько вам лет?",
+            "choice": [{"text": "Мне 10 лет"},
+                {"text": "Мне 15 лет"},
+                {"text": "Мне 20 лет"}]
+        },
+        {"type": "PLURAL ANSWER",
+            "text": "Выберите несколько утверждений, которые вам кажутся верными",
+            "choice": [{"text": "Земля плоская"},
+                {"text": "Земля круглая"},
+                {"text": "Земля квадратная"}]
         }
+
+        ]
+
 
     """
     try:
-        service.create_new_simple_poll(db=db, poll=poll_data, user_id=user.id)
+        service.create_new_poll(db=db, poll=poll_data, user_id=user.id)
+        #service.create_new_simple_poll(db=db, poll=poll_data, user_id=user.id)
         return JSONResponse(status_code=201, content={"message": "Poll created successfully"})
     except Exception as e:
         raise HTTPException(status_code=400, detail="Error while creating user poll:" + str(e))
