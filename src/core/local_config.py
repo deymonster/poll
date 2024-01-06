@@ -19,6 +19,7 @@ class Settings(BaseSettings):
 
     BASEDIR: str = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
     MEDIA_ROOT: str = os.path.join(BASEDIR, 'media')
+    VUE_APP_BASE_URL: str
 
     class Config:
         env_file = ".env"

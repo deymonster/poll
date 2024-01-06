@@ -149,7 +149,7 @@ def update_poll(poll_id: int,
         if poll:
             return JSONResponse(status_code=201, content={"message": "Poll updated successfully"})
     except Exception as e:
-        raise HTTPException(status_code=500, detail="Errors while updating poll")
+        raise HTTPException(status_code=500, detail=f"Errors while updating poll - {e}")
 
 
 # endpoint for changing poll status

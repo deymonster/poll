@@ -235,27 +235,50 @@ def update_poll(db: Session, poll_id: int, poll: schemas.UpdatePoll, user_id: in
     :return: обновленный опрос
 
     """
+
+    # проверка на существование опроса в БД
     db_poll = db.query(models.Poll).options(joinedload(models.Poll.question).joinedload(models.Question.choice))\
         .filter(models.Poll.id == poll_id).filter(models.Poll.user_id == user_id).first()
-    #db.query(models.Poll)
-        # .options(joinedload(models.Pll.question)
-        # .joinedload(models.Question.choice))
-        # .filter(models.Poll.id == poll_id)
-        # .filter(models.Poll.user_id == user_id)
-        # .first())
+
     if not db_poll:
         raise HTTPException(status_code=404, detail="Poll not found")
-    # otherwise update poll
-    poll_data = poll.model_dump(exclude_unset=True)
-    if poll.poll_cover is None:
-        poll_data["poll_cover"] = None
-    # if poll.poll_status == PollStatus.PUBLISHED:
-    #     poll_data["poll_url"] = f"{settings.VUE_APP_BASE_URL}/poll/{db_poll.uuid}"
-    # else:
-    #     poll_data["poll_url"] = None
-    for key, value in poll_data.items():
-        setattr(db_poll, key, value)
-    db.add(db_poll)
+
+    # # otherwise update poll
+    for attr, value in poll.model_dump(exclude={"question"}).items():
+        setattr(db_poll, attr, value)
+
+    # Удаляем все связанные варианты ответов
+    db.query(models.Choice).filter(models.Choice.question_id.in_(
+        db.query(models.Question.id).filter(models.Question.poll_id == poll_id)
+    )).delete(synchronize_session=False)
+    # Удаляем все текущие вопросы
+    db.query(models.Question).filter(models.Question.poll_id == poll_id).delete()
+
+    create_question(db=db, questions=poll.question, poll_id=db_poll.id)
+
+    # Вариант обновления перебором всех вопросов и вариантов
+    # # обновляем вопросы и варианты ответов
+    # for question in poll.question:
+    #     db_question = next((q for q in db_poll.question if q.text == question.text), None)
+    #     if db_question:
+    #         print(f'Update Question - {db_question}')
+    #         for attr, value in question.model_dump(exclude={"choice"}).items():
+    #             setattr(db_question, attr, value)
+    #
+    #         for choice in question.choice:
+    #             db_choice = next((c for c in db_question.choice if c.text == choice.text), None)
+    #             if db_choice:
+    #                 print(f'Update Choice - {db_choice}')
+    #                 for attr, value in choice.model_dump().items():
+    #                     setattr(db_choice, attr, value)
+    #
+    #             else:
+    #                 print(f'Create new Choice - {choice}')
+    #                 create_new_choice(db=db, choice=choice, question_id=db_question.id)
+    #     else:
+    #         print(f'Create new question - {question}')
+    #         create_question(db, [question], db_poll.id)
+
     db.commit()
     db.refresh(db_poll)
     return db_poll
@@ -435,21 +458,31 @@ def update_single_question(db: Session, poll_id: int, question_id: int, question
     :param user_id: id пользователя
     :return: обновленный вопрос
     """
-    # check if the poll exists for the user
-    db_poll = db.query(models.Poll).filter_by(id=poll_id, user_id=user_id).first()
-    if not db_poll:
-        raise HTTPException(status_code=404, detail="Poll not found for the user")
-    db_question = db.query(models.Question).filter(models.Question.id == question_id).first()
+
+    db_question = db.query(models.Question).options(joinedload(models.Question.choice))\
+        .filter(models.Question.id == question_id).first()
+
     if not db_question:
         raise HTTPException(status_code=404, detail="Question not found")
     # otherwise update question
-    for key, value in question.model_dump(exclude_unset=True).items():
+    question_orm = models.Question.from_dto(question)
+    for key, value in question_orm.__dict__.items():
         setattr(db_question, key, value)
+    db.commit()
 
     for choice in question.choice:
-        db_choice = models.Choice(**choice.model_dump(), question_id=db_question.id)
-        db.add(db_choice)
-    db.commit()
+        db_choice = next((c for c in db_question.choice if c.text == choice.text), None)
+
+        if db_choice:
+            choice_orm = models.Choice.from_dto(choice)
+            for key, value in choice_orm.__dict__.items():
+                setattr(db_choice, key, value)
+            db.commit()
+        else:
+            choice_orm = models.Choice.from_dto(choice)
+            db_choice = models.Choice(**choice_orm.__dict__, question_id=db_question.id)
+            db.add(db_choice)
+            db.commit()
     return db_question
 
 

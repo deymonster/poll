@@ -9,18 +9,18 @@ from user.models import User
 
 
 class TypeQuestion(str, Enum):
-    SINGLE = 'SINGLE ANSWER'
-    PLURAL = 'PLURAL ANSWER'
-    FREE = 'FREE ANSWER'            # multiple text fields for answer
-    FREE_TEXT = 'FREE TEXT ANSWER'  # one text field for answer
+    SINGLE = "SINGLE ANSWER"
+    PLURAL = "PLURAL ANSWER"
+    FREE = "FREE ANSWER"  # multiple text fields for answer
+    FREE_TEXT = "FREE TEXT ANSWER"  # one text field for answer
 
 
 class PollStatus(str, Enum):
-    DRAFT = 'DRAFT'
-    PUBLISHED = 'PUBLISHED'
-    CLOSED = 'CLOSED'
-    ENDED = 'ENDED'
-    ARCHIVED = 'ARCHIVED'
+    DRAFT = "DRAFT"
+    PUBLISHED = "PUBLISHED"
+    CLOSED = "CLOSED"
+    ENDED = "ENDED"
+    ARCHIVED = "ARCHIVED"
 
 
 class Poll(Base):
@@ -83,9 +83,3 @@ class Response(Base):
     choice = relationship("Choice", back_populates="response")
     answer_text = Column(JSON, nullable=True)
     answer_choice = Column(JSON, nullable=True)
-
-
-
-
-
-

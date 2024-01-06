@@ -23,6 +23,7 @@ pydantic-settings = "^2.0.2"
 apscheduler = "^3.10.4"
 pyhumps = "^3.8.0"
 loguru = "^0.7.2"
+black = "^23.12.1"
 
 
 [build-system]
