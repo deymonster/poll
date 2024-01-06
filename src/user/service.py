@@ -33,7 +33,9 @@ def check_user_role(user: User, required_roles: List[UserRole]):
         return user
 
     if not any(role in user.roles for role in map(lambda r: r.value, required_roles)):
-        raise HTTPException(status_code=403, detail="The user doesn't have enough privileges")
+        raise HTTPException(
+            status_code=403, detail="The user doesn't have enough privileges"
+        )
     return user
 
 
@@ -61,7 +63,6 @@ def check_user_role(user: User, required_roles: List[UserRole]):
 
 
 class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
-
     def get_by_email(self, db_session: Session, *, email: str) -> Optional[User]:
         """
         Получение пользователя по email
@@ -92,7 +93,9 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         db_session.refresh(db_obj)
         return db_obj
 
-    def authenticate(self, db_session: Session, *, email: str, password: str) -> Optional[User]:
+    def authenticate(
+        self, db_session: Session, *, email: str, password: str
+    ) -> Optional[User]:
         """
         Метод аутентификации пользователя
 
@@ -119,7 +122,9 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         """
         return user.is_active
 
-    def get_multi(self, db_session: Session, current_user: User, *, skip=0, limit=100) -> List[ModelType]:
+    def get_multi(
+        self, db_session: Session, current_user: User, *, skip=0, limit=100
+    ) -> List[ModelType]:
         """
         Метод получения списка пользователей
 
@@ -135,7 +140,9 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
             query = query.filter(self.model.company_id == current_user.company_id)
         return query.offset(skip).limit(limit).all()
 
-    def get_or_404(self, db_session: Session, user_id: int, current_user: User) -> ModelType:
+    def get_or_404(
+        self, db_session: Session, user_id: int, current_user: User
+    ) -> ModelType:
         """
         Метод получения пользователя или 404
         :param db_session: сессия БД
@@ -150,10 +157,19 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         # check role if afmin then check if user from same company
         if UserRole.ADMIN in current_user.roles:
             if current_user.company_id != user.company_id:
-                raise HTTPException(status_code=403, detail="The user from another company")
+                raise HTTPException(
+                    status_code=403, detail="The user from another company"
+                )
         return user
 
-    def update(self, db_session: Session, current_user: User, *, db_obj: Optional[ModelType] = None, update_data: UserUpdate) -> ModelType:
+    def update(
+        self,
+        db_session: Session,
+        current_user: User,
+        *,
+        db_obj: Optional[ModelType] = None,
+        update_data: UserUpdate,
+    ) -> ModelType:
         """
         Метод обновления пользователя
 
@@ -169,23 +185,28 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         # check if user with this email exists and if new email is not the same as in db
         user = self.get_by_email(db_session, email=update_data.email)
         if user and user.id != db_obj.id:
-            #logger.info(f"User with this email already exists")
-            raise HTTPException(status_code=409, detail="The user with this email already exists")
+            # logger.info(f"User with this email already exists")
+            raise HTTPException(
+                status_code=409, detail="The user with this email already exists"
+            )
         update_data.is_active = True
         print(f"update_data in service - {update_data}")
         print(f"db_obj - {db_obj}")
         match True:
             case _ if UserRole.SUPERADMIN in current_user.roles:
-
                 return super().update(db_session, db_obj=db_obj, obj_in=update_data)
             case _ if UserRole.ADMIN in current_user.roles:
                 if current_user.company_id != db_obj.company_id:
-                    raise HTTPException(status_code=403, detail="The user from another company")
+                    raise HTTPException(
+                        status_code=403, detail="The user from another company"
+                    )
                 update_data.roles = [UserRole.USER]
                 return super().update(db_session, db_obj=db_obj, obj_in=update_data)
             case _ if UserRole.USER in current_user.roles:
                 if current_user.id != db_obj.id:
-                    raise HTTPException(status_code=403, detail="The user can't update another user")
+                    raise HTTPException(
+                        status_code=403, detail="The user can't update another user"
+                    )
                 update_data.roles = [UserRole.USER]
                 update_data.email = current_user.email
                 return super().update(db_session, db_obj=db_obj, obj_in=update_data)
@@ -206,17 +227,22 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         user = self.get_or_404(db, user_id=user_id, current_user=current_user)
         if UserRole.ADMIN in current_user.roles:
             if current_user.company_id != user.company_id:
-                raise HTTPException(status_code=403, detail="The user from another company")
+                raise HTTPException(
+                    status_code=403, detail="The user from another company"
+                )
             return super().remove(db, id=user_id)
         return super().remove(db, id=user_id)
 
     # register user by email
-    def register_user(self, db_session: Session,
-                      request: Request,
-                      current_user: User,
-                      *,
-                      obj_in: UserCreateByEmail,
-                      background_tasks: BackgroundTasks):
+    def register_user(
+        self,
+        db_session: Session,
+        request: Request,
+        current_user: User,
+        *,
+        obj_in: UserCreateByEmail,
+        background_tasks: BackgroundTasks,
+    ):
         """
         Метод регистрации пользователя
 
@@ -235,7 +261,9 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
             )
         match True:
             case _ if UserRole.ADMIN in current_user.roles:
-                if not can_invite_new_users(db=db_session, company_id=current_user.company_id):
+                if not can_invite_new_users(
+                    db=db_session, company_id=current_user.company_id
+                ):
                     raise HTTPException(
                         status_code=400,
                         detail="The company has no free licenses.",
@@ -251,30 +279,41 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
 
             case _:
                 raise HTTPException(status_code=403, detail="Unknown user role")
-        registration_token = generate_registration_token(email=obj_in.email,
-                                                         roles=obj_in.roles,
-                                                         full_name=obj_in.full_name,
-                                                         company_id=obj_in.company_id)
+        registration_token = generate_registration_token(
+            email=obj_in.email,
+            roles=obj_in.roles,
+            full_name=obj_in.full_name,
+            company_id=obj_in.company_id,
+        )
         if isinstance(registration_token, bytes):
-            registration_token = registration_token.decode('utf-8')
+            registration_token = registration_token.decode("utf-8")
 
-        add_invitation(db=db_session, email=obj_in.email, token=registration_token, company_id=obj_in.company_id)
+        add_invitation(
+            db=db_session,
+            email=obj_in.email,
+            token=registration_token,
+            company_id=obj_in.company_id,
+        )
         referer = request.headers.get("Referer")
         frontend_url = f"{urlparse(referer).scheme}://{urlparse(referer).netloc}"
 
         # send email with registration link in background
-        background_tasks.add_task(send_new_account_email,
-                                  email_to=obj_in.email,
-                                  full_name=obj_in.full_name,
-                                  email=obj_in.email,
-                                  link=frontend_url,
-                                  token=registration_token)
+        background_tasks.add_task(
+            send_new_account_email,
+            email_to=obj_in.email,
+            full_name=obj_in.full_name,
+            email=obj_in.email,
+            link=frontend_url,
+            token=registration_token,
+        )
 
-        logger.info(event_type="User registration",
-                    obj=f"{current_user.full_name}",
-                    subj=f"{obj_in.full_name}",
-                    action="Registration email sent to user",
-                    additional_info=f"User role for new user - {obj_in.roles}")
+        logger.info(
+            event_type="User registration",
+            obj=f"{current_user.full_name}",
+            subj=f"{obj_in.full_name}",
+            action="Registration email sent to user",
+            additional_info=f"User role for new user - {obj_in.roles}",
+        )
 
         return {"message": "Registration email sent to user"}
 

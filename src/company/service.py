@@ -76,6 +76,7 @@ def update_company_by_id(db: Session, company_id: int, data: schemas.CompanyUpda
     :return: updated company
     """
     db_company = get_company_by_id(db, company_id)
+
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(db_company, field, value)
     db.commit()

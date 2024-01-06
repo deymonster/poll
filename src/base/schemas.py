@@ -10,7 +10,7 @@ from datetime import timedelta
 
 @dataclass
 class TokenData:
-    """ Dataclass for token data """
+    """Dataclass for token data"""
 
     user_id: str
 
@@ -22,7 +22,7 @@ class TokenData:
 
 @dataclass
 class TokenPayload:
-    """ Dataclass for token payload """
+    """Dataclass for token payload"""
 
     user_id: int
     exp: int
@@ -43,4 +43,3 @@ class TokenVerificationResponse(CamelModelMixin):
     roles: List[str]
     full_name: str
     company_id: Optional[int] = None
-

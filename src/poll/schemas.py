@@ -90,7 +90,7 @@ class QuestionUpdate(CamelModelMixin):
     question_cover: Optional[str] = None
     option_pass: Optional[bool] = True
     option_other_answer: Optional[bool] = True
-    choice: List[ChoiceUpdate]
+    choice: List[Choice]
 
     class Config:
         from_attributes = True
