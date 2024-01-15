@@ -43,7 +43,7 @@ crud_poll = CRUDPoll(models.Poll)
 
 # POLL
 
-# get single poll with questions and choices
+# get single poll by id with questions and choices
 def get_single_poll(db: Session, poll_id: int, user_id: int):
     """ Get user poll with all questions and choices in it"""
     return (
@@ -53,6 +53,19 @@ def get_single_poll(db: Session, poll_id: int, user_id: int):
         .filter(models.Poll.id == poll_id)
         .filter(models.Poll.user_id == user_id)
         .first())
+
+
+# get single poll by uuid with questions and choices
+def get_poll_by_uuid(db: Session, uuid: UUID):
+    """ Get user poll with all questions and choices in it by UUID"""
+    poll = db.query(models.Poll)\
+        .options(joinedload(models.Poll.question)
+                 .joinedload(models.Question.choice))\
+        .filter(models.Poll.uuid == uuid).first()
+    if poll.poll_url and poll.poll_status == PollStatus.PUBLISHED:
+        return poll
+    else:
+        return None
 
 
 # create new poll with questions and choices
@@ -204,22 +217,6 @@ def get_poll_questions_paginated(db: Session, poll_uuid: UUID, page: int = 1, pa
     total_questions = db.query(models.Question).filter(models.Question.poll_id == poll.id).count()
     #logger.info(f"Total questions {total_questions}")
     return questions, total_questions
-
-
-# add question to poll
-def create_poll_question(db: Session, question: schemas.QuestionCreate, poll_uuid: UUID):
-    # Get the poll with given uuid
-    poll = db.query(models.Poll).filter(models.Poll.uuid == poll_uuid).first()
-    if not poll:
-        raise HTTPException(status_code=404, detail="Poll not found")
-    # otherwise create question
-    # import pdb; pdb.set_trace()
-    db_question = models.Question(**question.dict(), poll_id=poll.id)
-    # add question to db
-    db.add(db_question)
-    db.commit()
-    db.refresh(db_question)
-    return db_question
 
 
 def update_poll(db: Session, poll_id: int, poll: schemas.UpdatePoll, user_id: int):
