@@ -1,5 +1,5 @@
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, Request, Query, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Request, Query, UploadFile, File, Path
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 from starlette import status
@@ -204,6 +204,18 @@ def get_poll(poll_id: int, db: Session = Depends(get_db), user: User = Depends(g
         raise HTTPException(status_code=404, detail="Poll not found")
     return poll
 
+
+# Получение детальной информации об опросе UUID
+@router.get("/uuid_poll/{uuid}")
+def get_poll(uuid: UUID, db: Session = Depends(get_db)) -> SinglePoll:
+    """ Эндпойнт для полуения детальной информации об опросе включая все вопросы и варианты ответы на них для прохождения опроса
+    :param uuid: Идентификатор UUID опроса
+    :param db: Сессия базы данных
+    :return poll  Опрос пользователя со всеми данными"""
+    poll = service.get_poll_by_uuid(db=db, uuid=uuid)
+    if not poll:
+        raise HTTPException(status_code=404, detail="Published Poll not found")
+    return poll
 
 # QUESTIONS
 # endpoint for getting all questions from poll
