@@ -15,7 +15,7 @@ from typing import Optional
 from uuid import UUID, uuid4
 
 from .models import PollStatus, Response
-from .schemas import QuestionType
+from .schemas import QuestionType, StatusPoll
 from api.utils.logger import PollLogger
 
 # Logging
@@ -119,9 +119,6 @@ def clone_poll_by_id(db: Session, poll_id, user_id: int):
     return new_poll
 
 
-
-
-
 # get all user polls
 def get_all_user_poll(db: Session, user_id: int, status: Optional[PollStatus] = None):
     """
@@ -132,9 +129,10 @@ def get_all_user_poll(db: Session, user_id: int, status: Optional[PollStatus] = 
     :param status: PollStatus (optional)
     :return: List[Model Poll]
     """
-    selected_fileds = [models.Poll.id, models.Poll.created_at, models.Poll.title, models.Poll.description,
+    selected_fields = [models.Poll.id, models.Poll.created_at, models.Poll.title, models.Poll.description,
                        models.Poll.poll_cover, models.Poll.poll_status]
-    query = db.query(*selected_fileds).filter(models.Poll.user_id == user_id)
+    query = db.query(*selected_fields).filter(models.Poll.user_id == user_id)
+
     if status:
         query = query.filter(models.Poll.poll_status == status)
     return query.all()
@@ -243,9 +241,14 @@ def update_poll(db: Session, poll_id: int, poll: schemas.UpdatePoll, user_id: in
     if not db_poll:
         raise HTTPException(status_code=404, detail="Poll not found")
 
+    # Проверяем статус опроса
+    if db_poll.poll_status != PollStatus.DRAFT:
+        raise HTTPException(status_code=400, detail="Cannot update a non-draft poll")
+
     # # otherwise update poll
     for attr, value in poll.model_dump(exclude={"question"}).items():
-        setattr(db_poll, attr, value)
+        if value is not None:
+            setattr(db_poll, attr, value)
 
     # Удаляем все связанные варианты ответов
     db.query(models.Choice).filter(models.Choice.question_id.in_(
@@ -255,6 +258,8 @@ def update_poll(db: Session, poll_id: int, poll: schemas.UpdatePoll, user_id: in
     db.query(models.Question).filter(models.Question.poll_id == poll_id).delete()
 
     create_question(db=db, questions=poll.question, poll_id=db_poll.id)
+    db.commit()
+
 
     # Вариант обновления перебором всех вопросов и вариантов
     # # обновляем вопросы и варианты ответов
@@ -279,7 +284,6 @@ def update_poll(db: Session, poll_id: int, poll: schemas.UpdatePoll, user_id: in
     #         print(f'Create new question - {question}')
     #         create_question(db, [question], db_poll.id)
 
-    db.commit()
     db.refresh(db_poll)
     return db_poll
 
@@ -308,8 +312,11 @@ def update_poll_status(db: Session, poll_id: int, payload_status: schemas.PollSt
                 raise HTTPException(status_code=400,
                                     detail="Each question must have at least one choice to publish the poll")
         db_poll.poll_status = PollStatus.PUBLISHED
+        db_poll.poll_url = f"/poll/{db_poll.uuid}"
+
     else:
         db_poll.poll_status = PollStatus.DRAFT
+        db_poll.poll_url = None
     db.add(db_poll)
     db.commit()
     db.refresh(db_poll)

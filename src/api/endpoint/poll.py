@@ -49,7 +49,7 @@ def user_polls(db: Session = Depends(get_db), user: User = Depends(get_current_a
         polls = service.get_all_user_poll(db=db, user_id=user.id)
         return polls
     except Exception as e:
-        raise HTTPException(status_code=400, detail="Errors while getting user polls")
+        raise HTTPException(status_code=400, detail=f"Errors while getting user polls - {e}")
 
 
 # endpoint for adding new poll user for vue frontend
@@ -148,12 +148,14 @@ def update_poll(poll_id: int,
         poll = service.update_poll(db=db, poll_id=poll_id, poll=poll_data, user_id=user.id)
         if poll:
             return JSONResponse(status_code=201, content={"message": "Poll updated successfully"})
+    except HTTPException as e:
+        return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Errors while updating poll - {e}")
 
 
 # endpoint for changing poll status
-@router.post("/user_polls/{poll_id}/status", response_model=Message)
+@router.put("/user_polls/{poll_id}/status", response_model=Message)
 def change_poll_status(poll_id: int,
                        payload_status: schemas.PollStatusUpdate,
                        db: Session = Depends(get_db),
@@ -167,11 +169,14 @@ def change_poll_status(poll_id: int,
     :param user: Текущий активный пользователь
 
     """
-    poll = service.update_poll_status(db=db, poll_id=poll_id, payload_status=payload_status, user_id=user.id)
-    if poll:
-        return JSONResponse(status_code=201, content={"message": "Poll updated successfully"})
-    else:
-        raise HTTPException(status_code=500, detail="Errors while updating poll status")
+    try:
+        poll = service.update_poll_status(db=db, poll_id=poll_id, payload_status=payload_status, user_id=user.id)
+        if poll:
+            return JSONResponse(status_code=201, content={"message": "Poll updated successfully", "poll_url": poll.poll_url})
+    except HTTPException as e:
+        return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Errors while updating poll - {e}")
 
 
 # endpoint for deleteing user poll

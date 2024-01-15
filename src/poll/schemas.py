@@ -133,7 +133,8 @@ class Poll(CamelModelMixin):
     title: str
     description: Optional[str] = None
     poll_cover: Optional[str] = None
-    poll_status: StatusPoll = StatusPoll.DRAFT
+    poll_url: Optional[str] = None
+    poll_status: Optional[StatusPoll] = StatusPoll.DRAFT
 
 
 class PollAllData(PollBase):
@@ -167,7 +168,6 @@ class UpdatePoll(CamelModelMixin):
     title: Optional[str] = None
     description: Optional[str] = None
     poll_cover: Optional[str] = None
-    poll_status: StatusPoll = StatusPoll.DRAFT
     question: Optional[List[Question]] = []
 
 

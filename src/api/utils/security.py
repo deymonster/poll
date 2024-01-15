@@ -94,7 +94,7 @@ def create_initial_user(db: Session):
     if not user:
         db_obj = UserCreate(
             email="super@user.me",
-            password="qwe123QWE",
+                password="qwe123QWE",
             full_name="Super Admin",
             is_active=True,
             roles=[UserRole.SUPERADMIN]
