@@ -1,9 +1,12 @@
 import shutil
+import copy
 
 from fastapi import HTTPException, UploadFile
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy import func
-from sqlalchemy.orm import Session, joinedload
+
+from sqlalchemy.orm import Session, joinedload, class_mapper, RelationshipProperty
+from sqlalchemy.orm.session import make_transient
 
 from core.local_config import settings
 from . import models, schemas
@@ -20,6 +23,33 @@ from api.utils.logger import PollLogger
 
 # Logging
 logger = PollLogger(__name__)
+
+
+def sqlalchemy_to_pydantic(poll: models.Poll):
+    """ Типа костыль для преобразования инстанса модели опроса в модель Pydantic"""
+    questions = []
+    for db_question in poll.question:
+        choices = []
+        for db_choice in db_question.choice:
+            choice_pydantic = schemas.Choice(
+                text=db_choice.text,
+                choice_cover=db_choice.choice_cover
+            )
+            choices.append(choice_pydantic)
+        question_pydantic = schemas.Question(
+            type=db_question.type,
+            text=db_question.text,
+            choice=choices
+        )
+        questions.append(question_pydantic)
+    poll_pydantic = schemas.CreatePoll(
+        title=poll.title,
+        description=poll.description,
+        poll_cover=poll.poll_cover,
+        poll_status=poll.poll_status,
+        question=questions
+    )
+    return poll_pydantic
 
 
 # TODO доделать класс CRUDBase для Poll
@@ -79,10 +109,11 @@ def create_new_poll(db: Session, poll: schemas.CreatePoll, user_id: int):
     :return: Model Poll
     """
     db_poll = models.Poll(**poll.model_dump(exclude={"question"}), user_id=user_id)
+    if poll.poll_status == StatusPoll.PUBLISHED:
+        db_poll.poll_url = f"/poll/{db_poll.uuid}"
     db.add(db_poll)
     db.commit()
     db.refresh(db_poll)
-
     create_question(db=db, questions=poll.question, poll_id=db_poll.id)
     return db_poll
 
@@ -116,19 +147,22 @@ def clone_poll_by_id(db: Session, poll_id, user_id: int):
     :return new_poll: Poll
     """
     original_poll = get_single_poll(db, poll_id, user_id)
-    new_uuid = uuid4()
     if original_poll is None:
         raise HTTPException(status_code=404, detail="Poll not found")
-    table = original_poll.__table__
-    non_pk_columns = [k for k in table.columns.keys() if k not in table.primary_key]
-    data = {c: getattr(original_poll, c) for c in non_pk_columns}
-    data['uuid'] = new_uuid
-    data['poll_status'] = PollStatus.DRAFT
-    new_poll = models.Poll(**data)
-    db.add(new_poll)
-    db.commit()
-    new_poll.question = original_poll.question
-    db.commit()
+
+    poll_pydantic_instance = sqlalchemy_to_pydantic(original_poll)
+    new_uuid = uuid4()
+
+    # Исключаем created_at из данных
+    original_poll_data = poll_pydantic_instance.model_dump(exclude={"created_at"})
+    # Устанавливаем новый UUID
+    original_poll_data["uuid"] = new_uuid
+    # Устанавливаем значения по умолчанию
+    original_poll_data["poll_status"] = PollStatus.DRAFT
+    original_poll_data["poll_url"] = ''
+    # Создаем новый опрос с вопросами и вариантами ответов
+    new_poll = create_new_poll(db, schemas.CreatePoll(**original_poll_data), user_id)
+
     return new_poll
 
 
@@ -242,10 +276,14 @@ def update_poll(db: Session, poll_id: int, poll: schemas.UpdatePoll, user_id: in
     if db_poll.poll_status != PollStatus.DRAFT:
         raise HTTPException(status_code=400, detail="Cannot update a non-draft poll")
 
-    # # otherwise update poll
+    #  otherwise update poll
     for attr, value in poll.model_dump(exclude={"question"}).items():
         if value is not None:
             setattr(db_poll, attr, value)
+
+    # Если статус Published то генерируем ссылку
+    if poll.poll_status == StatusPoll.PUBLISHED:
+        db_poll.poll_url == f"/poll/{db_poll.uuid}"
 
     # Удаляем все связанные варианты ответов
     db.query(models.Choice).filter(models.Choice.question_id.in_(
