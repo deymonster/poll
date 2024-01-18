@@ -218,7 +218,6 @@ def get_poll(uuid: UUID, db: Session = Depends(get_db)) -> SinglePoll:
     return poll
 
 
-
 # RESPONSES
 # endpoint for creating response for all poll questions
 @router.post("/user_polls/{poll_id}/responses", response_model=Message)
