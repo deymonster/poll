@@ -13,6 +13,7 @@ class ChoiceBase(CamelModelMixin):
 
 
 class Choice(CamelModelMixin):
+    id: int
     text: str
     choice_cover: Optional[str] = None
 
@@ -51,7 +52,7 @@ class StatusPoll(str, Enum):
 
 class QuestionBase(CamelModelMixin):
     """Base model schemas question"""
-
+    id:int
     type: QuestionType
     text: str
     question_cover: Optional[str] = None
@@ -252,7 +253,6 @@ class ResponsePayload(CamelModelMixin):
     choice_id: Optional[int] = None
     choice_ids: Optional[List[int]] = None
     choice_text: Optional[str] = None
-    choice_texts: Optional[Union[str, List[str]]] = None
 
 
 class CreatePollResponse(CamelModelMixin):
