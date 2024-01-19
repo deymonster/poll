@@ -98,6 +98,22 @@ def get_poll_by_uuid(db: Session, uuid: UUID):
         return None
 
 
+# create list questions with nested choices - for creating poll
+def create_question(db: Session, questions: List[schemas.Question], poll_id: int) -> None:
+    db_questions = []
+
+    for question in questions:
+
+        db_question = models.Question(**question.model_dump(exclude={"choice"}), poll_id=poll_id)
+
+        db.add(db_question)
+        db.flush()
+        db.refresh(db_question)
+        db_choice = [models.Choice(**choice.model_dump(), question_id=db_question.id) for choice in question.choice]
+        db.add_all(db_choice)
+        db_questions.append(db_question)
+    db.commit()
+
 # create new poll with questions and choices
 def create_new_poll(db: Session, poll: schemas.CreatePoll, user_id: int):
     """
@@ -452,117 +468,10 @@ def get_all_poll_questions_by_uuid(db: Session, poll_uuid: UUID):
     return db.query(models.Question).filter(models.Question.poll_id == db_poll.id).all()
 
 
-# get all choices from question
-def get_all_choices_from_question(db: Session, question_id: int):
-    return db.query(models.Choice).filter(models.Choice.question_id == question_id).all()
 
-
-# create single question with  choices
-def create_single_question(
-        db: Session,
-        poll_id: int,
-        user_id: int,
-        question_data: schemas.QuestionCreate,
-) -> models.Question:
-    """"
-    Создание вопроса с вариантами ответа
-
-    :param db: сессия БД
-    :param poll_id: id опроса
-    :param user_id: id пользователя
-    :param question_data: схема вопроса
-    :return db_question: Вопрос
-    """
-    max_order = db.query(func.max(models.Question.order)).filter(models.Question.poll_id == poll_id).scalar() or 0
-    new_order = max_order + 10
-    db_poll = db.query(models.Poll).filter(models.Poll.id == poll_id, models.Poll.user_id == user_id).first()
-    if not db_poll:
-        raise HTTPException(status_code=404, detail="Poll not found for the user")
-    db_question = models.Question(**question_data.model_dump(exclude={"choice"}), poll_id=poll_id, order=new_order)
-    db.add(db_question)
-    db.flush()
-    for choice_data in question_data.choice:
-        db_choice = models.Choice(**choice_data.model_dump(), question_id=db_question.id)
-        db.add(db_choice)
-    db.commit()
-    return db_question
-
-
-# update single question
-def update_single_question(db: Session, poll_id: int, question_id: int, question: schemas.QuestionUpdate, user_id: int):
-    """
-    Обновление вопроса с вариантами ответа
-
-    :param db: сессия БД
-    :param poll_id: id опроса
-    :param question_id: id вопроса
-    :param question: схема обновления
-    :param user_id: id пользователя
-    :return: обновленный вопрос
-    """
-
-    db_question = db.query(models.Question).options(joinedload(models.Question.choice))\
-        .filter(models.Question.id == question_id).first()
-
-    if not db_question:
-        raise HTTPException(status_code=404, detail="Question not found")
-    # otherwise update question
-    question_orm = models.Question.from_dto(question)
-    for key, value in question_orm.__dict__.items():
-        setattr(db_question, key, value)
-    db.commit()
-
-    for choice in question.choice:
-        db_choice = next((c for c in db_question.choice if c.text == choice.text), None)
-
-        if db_choice:
-            choice_orm = models.Choice.from_dto(choice)
-            for key, value in choice_orm.__dict__.items():
-                setattr(db_choice, key, value)
-            db.commit()
-        else:
-            choice_orm = models.Choice.from_dto(choice)
-            db_choice = models.Choice(**choice_orm.__dict__, question_id=db_question.id)
-            db.add(db_choice)
-            db.commit()
-    return db_question
-
-
-# create list questions with nested choices - for creating poll
-def create_question(db: Session, questions: List[schemas.Question], poll_id: int) -> None:
-    db_questions = []
-
-    for question in questions:
-
-        db_question = models.Question(**question.model_dump(exclude={"choice"}), poll_id=poll_id)
-
-        db.add(db_question)
-        db.flush()
-        db.refresh(db_question)
-        db_choice = [models.Choice(**choice.model_dump(), question_id=db_question.id) for choice in question.choice]
-        db.add_all(db_choice)
-        db_questions.append(db_question)
-    db.commit()
-
-
-# get single question with choices
-def get_single_question(db: Session, question_id: int):
-    return (
-        db.query(models.Question)
-        .options(joinedload(models.Question.choice))
-        .filter(models.Question.id == question_id)
-        .first())
 
 # Choices
 
-
-# create new choice for question
-def create_new_choice(db: Session, choice: schemas.ChoiceCreate, question_id: int):
-    db_choice = models.Choice(**choice.model_dump(), question_id=question_id)
-    db.add(db_choice)
-    db.commit()
-    db.refresh(db_choice)
-    return db_choice
 
 
 # update question
@@ -640,8 +549,18 @@ def create_new_response(db: Session, poll_responses: schemas.CreatePollResponse,
     """
     # check if the poll exists for the user
     db_poll = db.query(models.Poll).filter_by(id=poll_id, user_id=user_id).first()
+
+    #  Проверка на наличие опроса
     if not db_poll:
         raise HTTPException(status_code=404, detail="Poll not found for the user")
+    #  Проверка на активность опроса - есть время начала и время окончания опроса
+    if db_poll.active_from and not db_poll.is_poll_active():
+        raise HTTPException(status_code=400, detail="The poll is not active anymore")
+    #  Проврека на количество участников
+    if db_poll.max_participants is not None:
+        current_participants = db.query(models.Response).filter_by(poll_id=poll_id).count()
+        if current_participants >= db_poll.max_participants:
+            raise HTTPException(status_code=400, detail="Maximum number of participants reached")
     response_objects = []
     # iterate over the responses and create response objects
     # TODO with a UUID check if already answered using anonymous token
@@ -669,7 +588,7 @@ def handle_single_choice_response(db, db_question: models.Question, response_dat
     """
     #logger.info(response_data.choice_id)
     # check that response data has only choice_id for single choice question
-    if not (response_data.choice_id or response_data.choice_ids) or response_data.choice_text or response_data.choice_texts:
+    if not (response_data.choice_id or response_data.choice_ids) or response_data.choice_text:
         raise HTTPException(status_code=400, detail="Invalid answer data for single choice question")
     validate_choice(db, db_question.id, response_data.choice_id)
     return create_response(db, db_question, single_choice_id=response_data.choice_id)
@@ -685,7 +604,7 @@ def handle_multiple_choice_response(db, db_question: models.Question, response_d
     :return create_response
     """
     # check that response data has only choice_ids for multiple choice question
-    if not (response_data.choice_id or response_data.choice_ids) or response_data.choice_text or response_data.choice_texts:
+    if not (response_data.choice_id or response_data.choice_ids) or response_data.choice_text:
         raise HTTPException(status_code=400, detail="Invalid answer data for multiple choice question")
     for choice_id in response_data.choice_ids:
         validate_choice(db, db_question.id, choice_id)
@@ -700,9 +619,9 @@ def handle_text_response(db, db_question: models.Question, response_data: schema
     :param db_question: модель вопроса,
     :param response_data: схема для создания ответа на вопрос с текстовым ответом"""
     # check that response data has only answer_text for text question
-    if not (response_data.choice_texts or response_data.choice_text) or response_data.choice_id or response_data.choice_ids:
+    if not response_data.choice_text or response_data.choice_id or response_data.choice_ids:
         raise HTTPException(status_code=400, detail="Invalid answer data for text question")
-    return create_response(db, db_question, answer_text=response_data.choice_text or response_data.choice_texts)
+    return create_response(db, db_question, answer_text=response_data.choice_text)
 
 
 # Map question type to handler function
