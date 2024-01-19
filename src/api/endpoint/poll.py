@@ -6,7 +6,7 @@ from starlette import status
 from starlette.responses import RedirectResponse, JSONResponse
 
 from base.schemas import Message
-from poll.schemas import QuestionPage, Question, SinglePoll
+from poll.schemas import QuestionPage, Question, SinglePoll, SinglePollOut
 from api.utils.security import get_current_user, get_current_active_user
 from api.utils.db import get_db
 from poll import schemas, service
@@ -103,16 +103,17 @@ def create_poll(
                 {"text": "Земля круглая"},
                 {"text": "Земля квадратная"}]
         }
-    ]
+    ],
+    "active_duration": 15,
+    "max_participants": 10
 
-}
+},
 
         ]
 
     """
     try:
         service.create_new_poll(db=db, poll=poll_data, user_id=user.id)
-        #service.create_new_simple_poll(db=db, poll=poll_data, user_id=user.id)
         return JSONResponse(status_code=201, content={"message": "Poll created successfully"})
     except Exception as e:
         raise HTTPException(status_code=400, detail="Error while creating user poll:" + str(e))
@@ -207,12 +208,13 @@ def get_poll(poll_id: int, db: Session = Depends(get_db), user: User = Depends(g
 
 # Получение детальной информации об опросе UUID
 @router.get("/uuid_poll/{uuid}")
-def get_poll(uuid: UUID, db: Session = Depends(get_db)) -> SinglePoll:
+def get_poll(uuid: UUID, db: Session = Depends(get_db)) ->SinglePollOut:
     """ Эндпойнт для полуения детальной информации об опросе включая все вопросы и варианты ответы на них для прохождения опроса
     :param uuid: Идентификатор UUID опроса
     :param db: Сессия базы данных
     :return poll  Опрос пользователя со всеми данными"""
     poll = service.get_poll_by_uuid(db=db, uuid=uuid)
+
     if not poll:
         raise HTTPException(status_code=404, detail="Published Poll not found")
     return poll
@@ -231,7 +233,7 @@ def create_poll_response(poll_id: int, poll_responses: schemas.CreatePollRespons
     :param user: Текущий активный пользователь
     :return message: Сообщение об  успешном создании ответов на все вопросы опроса
     """
-    #logger.info(f"Poll responses {poll_responses}")
+
     service.create_new_response(db=db, poll_responses=poll_responses, poll_id=poll_id, user_id=user.id)
     return JSONResponse(status_code=201, content={"message": "Response created successfully"})
 

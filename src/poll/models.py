@@ -1,9 +1,9 @@
 from db.base_class import Base
 from enum import Enum
 from sqlalchemy.dialects.postgresql import ENUM, UUID
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, DateTime, JSON
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, DateTime, JSON, event
 from sqlalchemy.orm import relationship
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import uuid
 from user.models import User
 
@@ -33,11 +33,30 @@ class Poll(Base):
     description = Column(String, index=True)
     poll_cover = Column(String, nullable=True)
     poll_status = Column(ENUM(PollStatus), default=PollStatus.DRAFT)
-    poll_url = Column(String)
+    poll_url = Column(String, nullable=True)
     user_id = Column(Integer, ForeignKey("user.id"))
     user = relationship(User, back_populates="polls")
     question = relationship("Question", back_populates="poll")
     response = relationship("Response", back_populates="poll")
+
+    active_from = Column(DateTime, nullable=True)
+    active_duration = Column(Integer, nullable=True)
+    max_participants = Column(Integer, nullable=True)
+
+    def is_poll_active(self):
+        if self.active_from is not None and self.active_duration is not None:
+            now_utc = datetime.now(timezone.utc) + timedelta(hours=5)
+            active_until_utc = self.active_from.replace(tzinfo=timezone.utc) + timedelta(minutes=self.active_duration)
+            return now_utc < active_until_utc
+        else:
+            return self.active_from is not None
+
+
+@event.listens_for(Poll, "before_update")
+def before_update(mapper, connection, target):
+    if target.poll_status == PollStatus.PUBLISHED and not target.active_from:
+        now_utc = datetime.utcnow().replace(tzinfo=timezone.utc)
+        target.active_from = now_utc + timedelta(hours=5)
 
 
 class Question(Base):

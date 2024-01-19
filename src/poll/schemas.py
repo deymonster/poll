@@ -13,26 +13,19 @@ class ChoiceBase(CamelModelMixin):
 
 
 class Choice(CamelModelMixin):
+    text: str
+    choice_cover: Optional[str] = None
+
+
+class ChoiceOut(CamelModelMixin):
     id: int
     text: str
     choice_cover: Optional[str] = None
 
 
-class ChoiceCreate(CamelModelMixin):
-    text: str
-    choice_cover: Optional[str] = None
-    text_fields_count: Optional[int] = None
 
 
-# schema for updating Choice
-class ChoiceUpdate(Choice):
-    id: int
-    choice_text: str
 
-
-# schema for deleting Choice
-class ChoiceDelete(Choice):
-    id: int
 
 
 class QuestionType(str, Enum):
@@ -52,7 +45,7 @@ class StatusPoll(str, Enum):
 
 class QuestionBase(CamelModelMixin):
     """Base model schemas question"""
-    id:int
+
     type: QuestionType
     text: str
     question_cover: Optional[str] = None
@@ -61,7 +54,21 @@ class QuestionBase(CamelModelMixin):
 
 
 class Question(QuestionBase):
+
     choice: Optional[List[Choice]] = []
+
+    class Config:
+        from_attributes = True
+
+
+class QuestionOut(CamelModelMixin):
+    id: int
+    type: QuestionType
+    text: str
+    question_cover: Optional[str] = None
+    option_pass: Optional[bool] = True
+    option_other_answer: Optional[bool] = True
+    choice: Optional[List[ChoiceOut]] = []
 
     class Config:
         from_attributes = True
@@ -75,14 +82,6 @@ class QuestionPage(CamelModelMixin):
         from_attributes = True
 
 
-# schema for creating Question
-class QuestionCreate(CamelModelMixin):
-    type: QuestionType
-    text: str
-    question_cover: Optional[str] = None
-    option_pass: Optional[bool] = True
-    option_other_answer: Optional[bool] = True
-    choice: List[ChoiceCreate]
 
 
 # schema for updating Question
@@ -135,6 +134,9 @@ class Poll(CamelModelMixin):
     description: Optional[str] = None
     poll_cover: Optional[str] = None
     poll_url: Optional[str] = None
+    active_from: Optional[datetime] = None
+    active_duration: Optional[int] = None
+    max_participants: Optional[int] = None
     poll_status: Optional[StatusPoll] = StatusPoll.DRAFT
 
 
@@ -151,6 +153,8 @@ class CreatePoll(CamelModelMixin):
     poll_cover: Optional[str] = None
     poll_status: StatusPoll = StatusPoll.DRAFT
     question: Optional[List[Question]] = []
+    active_duration: Optional[int] = None
+    max_participants: Optional[int] = None
 
     class Config:
         from_attributes = True
@@ -174,6 +178,8 @@ class UpdatePoll(CamelModelMixin):
     poll_cover: Optional[str] = None
     poll_status: Optional[StatusPoll] = StatusPoll.DRAFT
     question: Optional[List[Question]] = []
+    active_duration: Optional[int] = None
+    max_participants: Optional[int] = None
 
 
 class PollStatusUpdate(CamelModelMixin):
@@ -188,6 +194,9 @@ class ListPoll(Poll):
 class SinglePoll(Poll):
     question: Optional[List[Question]] = []
 
+
+class SinglePollOut(Poll):
+    question: Optional[List[QuestionOut]] = []
 
 
 # schema for deleting Poll
