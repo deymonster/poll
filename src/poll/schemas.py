@@ -168,8 +168,6 @@ class CreateSimplePoll(CamelModelMixin):
 class PollDetail(PollBase):
     question_count: Optional[int] = None
 
-# class CreatePoll(Poll):
-#     pass
 
 
 class UpdatePoll(CamelModelMixin):
@@ -197,6 +195,7 @@ class SinglePoll(Poll):
 
 class SinglePollOut(Poll):
     question: Optional[List[QuestionOut]] = []
+    token: Optional[str]
 
 
 # schema for deleting Poll

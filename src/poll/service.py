@@ -1,5 +1,6 @@
 import shutil
 import copy
+from datetime import datetime, timezone, timedelta
 
 from fastapi import HTTPException, UploadFile
 from fastapi.encoders import jsonable_encoder
@@ -8,6 +9,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload, class_mapper, RelationshipProperty
 from sqlalchemy.orm.session import make_transient
 
+from core.jwt import create_anonymous_user_token
 from core.local_config import settings
 from . import models, schemas
 from typing import List, Union
@@ -93,6 +95,9 @@ def get_poll_by_uuid(db: Session, uuid: UUID):
                  .joinedload(models.Question.choice))\
         .filter(models.Poll.uuid == uuid).first()
     if poll.poll_url and poll.poll_status == PollStatus.PUBLISHED:
+        token_data = {"poll_id": poll.id}
+        token = create_anonymous_user_token(data=token_data)
+        setattr(poll, 'token', token)
         return poll
     else:
         return None
@@ -199,33 +204,6 @@ def get_all_user_poll(db: Session, user_id: int, status: Optional[PollStatus] = 
     if status:
         query = query.filter(models.Poll.poll_status == status)
     return query.all()
-
-#
-# # get user polls paginated with sort by and search
-# def get_user_poll_paginated(
-#         db: Session, user_id: int, sort_by: str, page: int = 1, page_size: int = 20, query: str = None
-# ):
-#     query = query.lower() if query else None
-#     if sort_by == "created_at_asc":
-#         order_by = models.Poll.created_at.asc()
-#     elif sort_by == "created_at_desc":
-#         order_by = models.Poll.created_at.desc()
-#     elif sort_by == "title":
-#         order_by = models.Poll.title.asc()
-#     else:
-#         order_by = models.Poll.created_at.desc()  # default sort by created_at desc
-#     if query:
-#         polls = (
-#             db.query(models.Poll)
-#             .filter(models.Poll.user_id == user_id, models.Poll.title.contains(query))
-#             .order_by(order_by)
-#         )
-#     else:
-#         polls = db.query(models.Poll).filter(models.Poll.user_id == user_id).order_by(order_by)
-#     polls = polls.offset((page - 1) * page_size).limit(page_size).all()
-#     total_polls = db.query(models.Poll).filter(models.Poll.user_id == user_id).count()
-#     logger.info(f"Total polls {total_polls}")
-#     return polls, total_polls
 
 
 # get single poll with list of responses

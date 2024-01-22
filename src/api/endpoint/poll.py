@@ -208,11 +208,14 @@ def get_poll(poll_id: int, db: Session = Depends(get_db), user: User = Depends(g
 
 # Получение детальной информации об опросе UUID
 @router.get("/uuid_poll/{uuid}")
-def get_poll(uuid: UUID, db: Session = Depends(get_db)) ->SinglePollOut:
-    """ Эндпойнт для полуения детальной информации об опросе включая все вопросы и варианты ответы на них для прохождения опроса
+def get_poll(uuid: UUID, db: Session = Depends(get_db)) -> SinglePollOut:
+    """ Эндпойнт для получения детальной информации об опросе включая все вопросы и варианты ответы на них для прохождения опроса
+
     :param uuid: Идентификатор UUID опроса
     :param db: Сессия базы данных
-    :return poll  Опрос пользователя со всеми данными"""
+    :return poll  Опрос пользователя со всеми данными
+
+    """
     poll = service.get_poll_by_uuid(db=db, uuid=uuid)
 
     if not poll:
