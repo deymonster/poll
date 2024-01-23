@@ -94,10 +94,12 @@ def get_poll_by_uuid(db: Session, uuid: UUID):
         .options(joinedload(models.Poll.question)
                  .joinedload(models.Question.choice))\
         .filter(models.Poll.uuid == uuid).first()
+    if poll is None:
+        raise HTTPException(status_code=404, detail="Poll not found")
     if poll.poll_url and poll.poll_status == PollStatus.PUBLISHED:
-        token_data = {"poll_id": poll.id}
-        token = create_anonymous_user_token(data=token_data)
-        setattr(poll, 'token', token)
+        # token_data = {"poll_id": poll.id}
+        # token = create_anonymous_user_token(data=token_data)
+        # setattr(poll, 'token', token)
         return poll
     else:
         return None

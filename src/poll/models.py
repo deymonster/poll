@@ -102,3 +102,16 @@ class Response(Base):
     choice = relationship("Choice", back_populates="response")
     answer_text = Column(JSON, nullable=True)
     answer_choice = Column(JSON, nullable=True)
+
+
+# Model Poll Session
+class UserSession(Base):
+    """Model for User Session at Poll"""
+
+    id = Column(Integer, primary_key=True, index=True)
+    poll_uuid = Column(UUID(as_uuid=True), ForeignKey("poll.uuid"))
+    token = Column(String, unique=True, index=True)
+    fingerprint = Column(String, nullable=True)
+    start_time = Column(DateTime)
+    end_time = Column(DateTime, nullable=True)
+

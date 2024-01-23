@@ -6,6 +6,7 @@ from starlette import status
 from starlette.responses import RedirectResponse, JSONResponse
 
 from base.schemas import Message
+from core.jwt import create_anonymous_user_token
 from poll.schemas import QuestionPage, Question, SinglePoll, SinglePollOut
 from api.utils.security import get_current_user, get_current_active_user
 from api.utils.db import get_db
@@ -222,6 +223,15 @@ def get_poll(uuid: UUID, db: Session = Depends(get_db)) -> SinglePollOut:
         raise HTTPException(status_code=404, detail="Published Poll not found")
     return poll
 
+
+# Генерация анонимного токена для опроса по UUID и по текущему времени
+@router.get("/uuid_poll/{uuid}/start")
+def get_poll(uuid: UUID):
+    token_data = {"poll_uuid": str(uuid)}
+    token = create_anonymous_user_token(data=token_data)
+    return {
+        "token": token
+    }
 
 # RESPONSES
 # endpoint for creating response for all poll questions

@@ -1,7 +1,7 @@
 from typing import Optional, List
 
 import jwt
-from fastapi import Depends, HTTPException, Security, Request, Response, FastAPI
+from fastapi import Depends, HTTPException, Security, Request, Header
 from fastapi.security import OAuth2PasswordBearer
 from jwt import PyJWTError
 from sqlalchemy.orm import Session
@@ -16,13 +16,14 @@ from starlette.status import (
 
 from core.security import get_password_hash
 from db.session import SessionLocal
+from poll import models
 from user.schemas import UserCreate
 from user.service import crud_user
 from api.utils.db import get_db
 from core import config
 from core.jwt import ALGORITHM
 from user.models import User, UserRole
-from base.schemas import TokenPayload
+from base.schemas import TokenPayload, AnonymTokenPayload
 from datetime import datetime, timedelta
 from core.jwt import create_access_token, create_refresh_token, ALGORITHM
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, OAuth2
@@ -124,6 +125,24 @@ def get_current_user(token: str = Depends(security), db: Session = Depends(get_d
     if not user:
         raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="User not found")
     return user
+
+
+def get_poll_session(token: str = Header(...), fingerprint: str = Header(None), db: Session = Depends(get_db)):
+    """Получение информации о сессии пользователя который проходит опрос"""
+    try:
+        payload = jwt.decode(token, config.SECRET_KEY, algorithm=ALGORITHM)
+        token_data = AnonymTokenPayload(**payload)
+        uuid = token_data.poll_uuid
+    except PyJWTError:
+        raise HTTPException(
+            status_code=HTTP_401_UNAUTHORIZED, detail="Could not validate credentials - no anonymous token"
+        )
+    user_session = db.query(models.UserSession).filter(models.Poll.uuid == uuid).first()
+    if user_session is None:
+        raise HTTPException(status_code=404, detail="Poll not found")
+    if user_session.token:
+        return user_session
+    return None
 
 
 def get_current_active_user(current_user: User = Security(get_current_user)):

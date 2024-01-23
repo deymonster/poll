@@ -55,8 +55,10 @@ def create_refresh_token(data: dict, expire_delta: timedelta = None):
 
 
 def create_anonymous_user_token(data: dict):
+    current_time = datetime.utcnow()
     to_encode = data.copy()
-    to_encode.update({"sub": anonymous_token_jwt_subject})
+    to_encode.update({"sub": anonymous_token_jwt_subject,
+                      "timestamp": current_time.timestamp()})
     encoded_jwt = jwt.encode(to_encode, config.SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt.decode()
 

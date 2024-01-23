@@ -5,7 +5,7 @@ from pydantic.main import BaseModel
 
 from utils import CamelModelMixin
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import timedelta, datetime
 
 
 @dataclass
@@ -27,6 +27,15 @@ class TokenPayload:
     user_id: int
     exp: int
     sub: str
+
+
+@dataclass
+class AnonymTokenPayload:
+    """Dataclass for poll token to identify users """
+
+    poll_uuid: str
+    sub: str
+    timestamp: datetime
 
 
 class RefreshToken(CamelModelMixin):
