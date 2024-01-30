@@ -1,12 +1,14 @@
 from typing import Optional, List
 
 import jwt
+from uuid import UUID
 from fastapi import Depends, HTTPException, Security, Request, Header
 from fastapi.security import OAuth2PasswordBearer
 from jwt import PyJWTError
 from sqlalchemy.orm import Session
 from starlette import status
-from starlette.responses import RedirectResponse
+from motor.motor_asyncio import AsyncIOMotorCollection
+
 from starlette.status import (
     HTTP_403_FORBIDDEN,
     HTTP_302_FOUND,
@@ -14,12 +16,11 @@ from starlette.status import (
     HTTP_404_NOT_FOUND,
     HTTP_500_INTERNAL_SERVER_ERROR)
 
-from core.security import get_password_hash
-from db.session import SessionLocal
-from poll import models
+from poll.schemas import UserSession
+# from pkg.mongo_tools.db import DatabaseManager
 from user.schemas import UserCreate
 from user.service import crud_user
-from api.utils.db import get_db
+from api.utils.db import get_db, get_mongo_db
 from core import config
 from core.jwt import ALGORITHM
 from user.models import User, UserRole
@@ -30,6 +31,8 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials, OAuth2
 from fastapi.security.utils import get_authorization_scheme_param
 from fastapi.openapi.models import OAuthFlows as OAuthFlowsModel
 from api.utils.logger import PollLogger
+
+from starlette.requests import Request
 
 # Logging
 logger = PollLogger(__name__)
@@ -65,22 +68,6 @@ class Oauth2PasswordBearerCookie(OAuth2):
                 return None
         return param
 
-# class HTTPCookieBearer(HTTPBearer):
-#     def __init__(self, auto_error: bool = True):
-#         super().__init__(auto_error=auto_error)
-#
-#     async def __call__(self, request: Request):
-#         authorization: str = request.cookies.get("access_token")
-#         scheme, param = get_authorization_scheme_param(authorization)
-#         if not authorization or scheme.lower() != "bearer":
-#             if self.auto_error:
-#                 raise HTTPException(
-#                     status_code=HTTP_403_FORBIDDEN, detail="Not authenticated"
-#                 )
-#             else:
-#                 return None
-#         return HTTPAuthorizationCredentials(scheme=scheme, credentials=param)
-
 
 security = OAuth2PasswordBearer(tokenUrl="/api/login")
 
@@ -95,7 +82,7 @@ def create_initial_user(db: Session):
     if not user:
         db_obj = UserCreate(
             email="super@user.me",
-                password="qwe123QWE",
+            password="qwe123QWE",
             full_name="Super Admin",
             is_active=True,
             roles=[UserRole.SUPERADMIN]
@@ -127,21 +114,47 @@ def get_current_user(token: str = Depends(security), db: Session = Depends(get_d
     return user
 
 
-def get_poll_session(token: str = Header(...), fingerprint: str = Header(None), db: Session = Depends(get_db)):
+async def get_poll_session(token: Optional[str] = Header(None),
+                           fingerprint: Optional[str] = Header(None),
+                           uuid: UUID = None,
+                           db_mongo: AsyncIOMotorCollection = Depends(get_mongo_db)
+                           ) -> Optional[UserSession]:
     """Получение информации о сессии пользователя который проходит опрос"""
-    try:
-        payload = jwt.decode(token, config.SECRET_KEY, algorithm=ALGORITHM)
-        token_data = AnonymTokenPayload(**payload)
-        uuid = token_data.poll_uuid
-    except PyJWTError:
-        raise HTTPException(
-            status_code=HTTP_401_UNAUTHORIZED, detail="Could not validate credentials - no anonymous token"
-        )
-    user_session = db.query(models.UserSession).filter(models.Poll.uuid == uuid).first()
-    if user_session is None:
-        raise HTTPException(status_code=404, detail="Poll not found")
-    if user_session.token:
-        return user_session
+    logger.info(f'token - {token}')
+    logger.info(f'fingerprint - {fingerprint}')
+    logger.info(f'uuid - {uuid}')
+    logger.info(f'db_mongo - {db_mongo}')
+    if token:
+        try:
+            payload = jwt.decode(token, config.SECRET_KEY, algorithm=ALGORITHM)
+            token_data = AnonymTokenPayload(**payload)
+            token_uuid = UUID(token_data.poll_uuid)
+
+        except PyJWTError:
+            raise HTTPException(
+                status_code=HTTP_401_UNAUTHORIZED, detail="Could not validate credentials - no anonymous token"
+            )
+
+        # Проверяем uuid из токена и тот который пришел из URL
+        if token_uuid != uuid:
+            return None
+
+        # Получение сессии из MongoDB
+        mongo_user_session = await db_mongo.find_one({"token": token})
+        logger.info(f'Mongo session by token - {mongo_user_session}')
+
+        if mongo_user_session:
+            if fingerprint and mongo_user_session.get("fingerprint") != fingerprint:
+                raise HTTPException(status_code=401, detail="Invalid fingerprint")
+            expires_at = mongo_user_session.get("expires_at")
+            if expires_at and expires_at < datetime.utcnow():
+                await db_mongo.delete_one({"token": token})
+                raise HTTPException(status_code=401, detail="Время сессии закончено, сессия удалена!")
+            # if mongo_user_session.get("poll_uuid") != uuid:
+            #     raise HTTPException(status_code=401, detail="Invalid poll_uuid in session")
+            if mongo_user_session.get("answered"):
+                raise HTTPException(status_code=401, detail="Вы уже прошли данный опрос!")
+            return mongo_user_session
     return None
 
 
@@ -164,7 +177,6 @@ def get_current_user_with_roles(current_user: User, required_roles: List[UserRol
         raise HTTPException(status_code=403, detail="The user doesn't have enough privileges")
     return current_user
 
-
 # # middleware for handling exceptions of HTTPCookieBearer
 # async def auth_middleware(request: Request, call_next):
 #     try:
@@ -176,5 +188,3 @@ def get_current_user_with_roles(current_user: User, required_roles: List[UserRol
 #             response = e
 #     except Exception as e:
 #         return HTTPException(status_code=HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal server error - {str(e)}")
-
-

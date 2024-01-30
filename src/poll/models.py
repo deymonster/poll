@@ -43,20 +43,18 @@ class Poll(Base):
     active_duration = Column(Integer, nullable=True)
     max_participants = Column(Integer, nullable=True)
 
-    def is_poll_active(self):
-        if self.active_from is not None and self.active_duration is not None:
-            now_utc = datetime.now(timezone.utc) + timedelta(hours=5)
-            active_until_utc = self.active_from.replace(tzinfo=timezone.utc) + timedelta(minutes=self.active_duration)
-            return now_utc < active_until_utc
+    def is_published(self):
+        if self.poll_status == PollStatus.PUBLISHED:
+            return True
         else:
-            return self.active_from is not None
+            return None
 
-
-@event.listens_for(Poll, "before_update")
-def before_update(mapper, connection, target):
-    if target.poll_status == PollStatus.PUBLISHED and not target.active_from:
-        now_utc = datetime.utcnow().replace(tzinfo=timezone.utc)
-        target.active_from = now_utc + timedelta(hours=5)
+#
+# @event.listens_for(Poll, "before_update")
+# def before_update(mapper, connection, target):
+#     if target.poll_status == PollStatus.PUBLISHED and not target.active_from:
+#         now_utc = datetime.utcnow().replace(tzinfo=timezone.utc)
+#         target.active_from = now_utc + timedelta(hours=5)
 
 
 class Question(Base):

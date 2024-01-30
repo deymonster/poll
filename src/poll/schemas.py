@@ -195,7 +195,6 @@ class SinglePoll(Poll):
 
 class SinglePollOut(Poll):
     question: Optional[List[QuestionOut]] = []
-    token: Optional[str]
 
 
 # schema for deleting Poll
@@ -289,3 +288,28 @@ class QuestionReport(CamelModelMixin):
 
 class PollReportResponse(CamelModelMixin):
     report: List[QuestionReport]
+
+
+class UserSession(CamelModelMixin):
+    token: str = Field(...)
+    fingerprint: Optional[str]
+    poll_uuid: str = Field(...)
+    expires_at: Optional[datetime]
+    expired: Optional[bool] = False
+    answered: Optional[bool] = False
+
+    # class Config:
+    #     schema_extra = {
+    #         "example": {
+    #             "token": ""
+    #         }
+    #     }
+
+
+class UpdateUserSession(CamelModelMixin):
+    expired: Optional[bool] = False
+    answered: Optional[bool] = False
+
+
+class FingerPrint(CamelModelMixin):
+    fingerprint: Optional[str] = None

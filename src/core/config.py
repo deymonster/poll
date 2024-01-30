@@ -58,4 +58,13 @@ FIRST_SUPERUSER_PASSWORD = os.getenv("FIRST_SUPERUSER_PASSWORD")
 
 LOG_FILE_PATH = os.getenv("LOG_FILE_PATH")
 
+#  MONGO
+MONGO_URI = os.getenv("MONGO_URI")
+MONGO_NAME = os.getenv("MONGO_NAME")
+MONGO_USER = os.getenv("MONGO_INITDB_ROOT_USERNAME")
+MONGO_PASSWORD = os.getenv("MONGO_INITDB_ROOT_PASSWORD")
+
+
+
+# mongosh "mongodb://localhost:27017/DB_MONGO" --username root --password Qwe123rty --authenticationDatabase admin
 

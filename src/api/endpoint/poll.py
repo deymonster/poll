@@ -1,29 +1,37 @@
-from typing import List
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Request, Query, UploadFile, File, Path
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 from starlette import status
 from starlette.responses import RedirectResponse, JSONResponse
+from motor.motor_asyncio import AsyncIOMotorCollection
 
 from base.schemas import Message
 from core.jwt import create_anonymous_user_token
-from poll.schemas import QuestionPage, Question, SinglePoll, SinglePollOut
-from api.utils.security import get_current_user, get_current_active_user
-from api.utils.db import get_db
+
+from poll.schemas import QuestionPage, Question, SinglePoll, SinglePollOut, UserSession
+from api.utils.security import get_current_user, get_current_active_user, get_poll_session
+from api.utils.db import get_db, get_mongo_db
 from poll import schemas, service
-from poll.service import crud_poll
+from poll.service import crud_poll, create_user_session
 from user.models import User
 from user.schemas import UserBase
 from api.utils.logger import PollLogger
+# from pkg.mongo_tools.db import mongo_manager
 
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 import os
 import locale
+from datetime import datetime, timedelta
 
 from uuid import UUID
 
 from api.utils.logger import PollLogger
+
+# Mongo DB
+
+# mongo_db = mongo_manager.get_database()
 
 # Logging
 logger = PollLogger(__name__)
@@ -174,7 +182,8 @@ def change_poll_status(poll_id: int,
     try:
         poll = service.update_poll_status(db=db, poll_id=poll_id, payload_status=payload_status, user_id=user.id)
         if poll:
-            return JSONResponse(status_code=201, content={"message": "Poll updated successfully", "poll_url": poll.poll_url})
+            return JSONResponse(status_code=201,
+                                content={"message": "Poll updated successfully", "poll_url": poll.poll_url})
     except HTTPException as e:
         return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
     except Exception as e:
@@ -225,29 +234,59 @@ def get_poll(uuid: UUID, db: Session = Depends(get_db)) -> SinglePollOut:
 
 
 # Генерация анонимного токена для опроса по UUID и по текущему времени
-@router.get("/uuid_poll/{uuid}/start")
-def get_poll(uuid: UUID):
-    token_data = {"poll_uuid": str(uuid)}
-    token = create_anonymous_user_token(data=token_data)
+@router.post("/uuid_poll/{uuid}/start")
+async def start_poll_session(uuid: UUID,
+                             fingerprint: schemas.FingerPrint,
+                             db_mongo: AsyncIOMotorCollection = Depends(get_mongo_db),
+                             db_mongo_session: UserSession = Depends(get_poll_session),
+                             db: Session = Depends(get_db)):
+    """ Эндпойнт для создания пользовательской сессии по прохождению опроса
+
+
+    :param uuid: UUID опроса
+    :param fingerprint: Уникальный идентификатор полученный в FingerprintJS
+    :param db_mongo: Клиент MongoDB
+    :param db_mongo_session: Сессия полученная из Mongo
+    :param db: Сессия PostgreSQL
+    """
+
+    poll = service.get_poll_by_uuid(db=db, uuid=uuid)
+    if not poll:
+        raise HTTPException(status_code=404, detail="Published Poll not found")
+    if db_mongo_session:
+        #  Если пользователь заново перейдет по ссылке опроса и нажмет начать второй раз
+        raise HTTPException(status_code=401, detail="Вы уже проходите в данный момент опрос!")
+
+    session_id, token = await create_user_session(db_mongo=db_mongo, poll=poll, fingerprint=fingerprint)
+    session_id_str = str(session_id)
     return {
-        "token": token
+        "token": token,
+        "session_id": session_id_str
     }
+
 
 # RESPONSES
 # endpoint for creating response for all poll questions
-@router.post("/user_polls/{poll_id}/responses", response_model=Message)
-def create_poll_response(poll_id: int, poll_responses: schemas.CreatePollResponse, db: Session = Depends(get_db),
-                         user: User = Depends(get_current_active_user)):
+@router.post("/user_polls/{uuid}/responses", response_model=Message)
+async def create_poll_response(uuid: UUID, poll_responses: schemas.CreatePollResponse,
+                               db: Session = Depends(get_db),
+                               db_mongo: AsyncIOMotorCollection = Depends(get_mongo_db),
+                               db_mongo_session: UserSession = Depends(get_poll_session)):
     """
     Эндпойнт для создания ответа на все вопросы опроса
-    :param poll_id: Идентификатор опроса
+
+
+    :param uuid: UUID опроса
     :param poll_responses: Схема для создания ответа на все вопросы опроса
-    :param db: Сессия базы данных
-    :param user: Текущий активный пользователь
+    :param db: Сессия базы данных PostreSQL
+    :param db_mongo: Клиент MongoDB
+    :param db_mongo_session: Сессия полученная из Mongo
     :return message: Сообщение об  успешном создании ответов на все вопросы опроса
     """
-
-    service.create_new_response(db=db, poll_responses=poll_responses, poll_id=poll_id, user_id=user.id)
+    logger.info(f"Session from MONGO - {db_mongo_session}")
+    await service.create_new_response(db=db, db_mongo=db_mongo,
+                                      poll_responses=poll_responses, uuid=uuid,
+                                      db_mongo_session=db_mongo_session)
     return JSONResponse(status_code=201, content={"message": "Response created successfully"})
 
 

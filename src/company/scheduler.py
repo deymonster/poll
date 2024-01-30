@@ -54,8 +54,8 @@ def check_active_polls():
                     action="",
                     additional_info=""
                     )
-        active_polls = db.query(Poll).filter(Poll.poll_status == PollStatus.PUBLISHED).all()
-        for poll in active_polls:
+        published_polls = db.query(Poll).filter(Poll.poll_status == PollStatus.PUBLISHED).all()
+        for poll in published_polls:
             if poll.is_poll_active() and poll.max_participants is not None:
                 participants_count = db.query(Response).filter_by(poll_id=poll.id).count()
                 if participants_count >= poll.max_participants:
@@ -72,5 +72,5 @@ def check_active_polls():
 
 scheduler = BackgroundScheduler()
 scheduler.add_job(check_expired_invitations, 'interval', minutes=15)
-scheduler.add_job(check_active_polls, 'interval', minutes=1)
+# scheduler.add_job(check_active_polls, 'interval', minutes=1)
 scheduler.start()
