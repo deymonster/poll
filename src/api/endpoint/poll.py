@@ -31,6 +31,12 @@ from datetime import datetime, timedelta
 from uuid import UUID
 
 from api.utils.logger import PollLogger
+from pkg.celery.tasks.celery_worker import monitor_sessions
+
+# Rocketry
+from pkg.rocketry.scheduler import app as app_rocketry
+session = app_rocketry.session
+
 
 
 
