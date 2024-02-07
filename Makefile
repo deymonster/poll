@@ -17,8 +17,10 @@ destroy:
 	docker-compose -f docker-compose.yaml down -v $(c)
 log:
 	docker-compose -f docker-compose.yaml logs --tail=150 -f pool-app
+
 shell:
 	docker-compose -f docker-compose.yaml exec pool-app /bin/bash
+
 #manage:
 #	docker-compose -f docker-compose.yaml exec pool-app python manage.py $(c)
 #makemigrations:

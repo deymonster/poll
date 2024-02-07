@@ -2,6 +2,7 @@ import shutil
 import copy
 from datetime import datetime, timezone, timedelta
 
+import bson
 from fastapi import HTTPException, UploadFile, Depends
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy import func
@@ -26,6 +27,8 @@ from uuid import UUID, uuid4
 from .models import PollStatus, Response
 from .schemas import QuestionType, StatusPoll, UserSession
 from api.utils.logger import PollLogger
+
+
 
 # Logging
 logger = PollLogger(__name__)
@@ -347,6 +350,7 @@ def update_poll_status(db: Session, poll_id: int, payload_status: schemas.PollSt
                                     detail="Each question must have at least one choice to publish the poll")
         db_poll.poll_status = PollStatus.PUBLISHED
         db_poll.poll_url = f"/poll/{db_poll.uuid}"
+
 
     else:
         db_poll.poll_status = PollStatus.DRAFT
@@ -721,21 +725,32 @@ def get_poll_report(db: Session, poll_id: int):
     return report
 
 
-async def create_user_session(db_mongo: AsyncIOMotorCollection, poll: models.Poll, fingerprint: schemas.FingerPrint):
+async def create_user_session(db: Session, uuid: UUID,
+                              db_mongo: AsyncIOMotorCollection,
+                              fingerprint: schemas.FingerPrint):
     """ Создание пользовательской сессии в MongoDB
 
 
+    :param db: Сессия PostgreSQL
+    :param uuid UUID опроса
     :param db_mongo: Сессия MongoDB
     :param poll: Модель опроса полученного из БД
     :param fingerprint: ID из FingerprintJS
     """
+
+    poll = get_poll_by_uuid(db=db, uuid=uuid)
+    if not poll:
+        raise HTTPException(status_code=404, detail="Published Poll not found")
+
     token_data = {"poll_uuid": str(poll.uuid)}
     token = create_anonymous_user_token(data=token_data)
 
     max_participants = poll.max_participants
     if max_participants is not None:
-        current_participants = await db_mongo.count_documents({"poll_uuid": poll.uuid})
-        if current_participants >= max_participants:
+        current_participants = await db_mongo.count_documents({"poll_uuid": str(uuid)})
+        if current_participants == max_participants:
+            poll.poll_status = PollStatus.CLOSED
+            db.commit()
             raise HTTPException(status_code=400, detail="Maximum participants reached for this poll.")
 
     expires_at = None
@@ -745,15 +760,27 @@ async def create_user_session(db_mongo: AsyncIOMotorCollection, poll: models.Pol
         expires_at = datetime.utcnow() + timedelta(minutes=poll.active_duration)
 
     # Создаем и сохраняем сессию опроса в MongoDB
-    session_data = {
-        "token": token,
-        "fingerprint": fingerprint.fingerprint,
-        "poll_uuid": str(poll.uuid),
-        "expires_at": expires_at,
-        "expired": expired_status,
-        "answered": answered_status
-    }
+    session_data = {"token": token,
+                    "fingerprint": fingerprint.fingerprint,
+                    "poll_uuid": str(uuid),
+                    "expires_at": expires_at,
+                    "expired": expired_status,
+                    "answered": answered_status
+                    }
 
     result = await db_mongo.insert_one(document=session_data)
     session_id = result.inserted_id
     return session_id, token
+
+
+async def get_sessions_by_poll_uuid(db_mongo: AsyncIOMotorCollection, poll_uuid: UUID):
+    """ Получение всех сессий опроса по poll_uuid из MongoDB
+
+
+    :param db_mongo: Сессия MongoDB
+    :param poll_uuid: UUID опроса
+    :return: Список сессий опроса
+    """
+
+    sessions = await db_mongo.find({"poll_uuid": str(poll_uuid)}).to_list(length=None)
+    return sessions

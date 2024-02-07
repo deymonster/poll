@@ -8,6 +8,9 @@ from motor.motor_asyncio import AsyncIOMotorCollection
 
 from base.schemas import Message
 from core.jwt import create_anonymous_user_token
+# from pkg.celery.tasks.celery_app import schedule_monitor_sessions
+from poll.models import PollStatus
+
 
 from poll.schemas import QuestionPage, Question, SinglePoll, SinglePollOut, UserSession
 from api.utils.security import get_current_user, get_current_active_user, get_poll_session
@@ -28,6 +31,12 @@ from datetime import datetime, timedelta
 from uuid import UUID
 
 from api.utils.logger import PollLogger
+from pkg.celery.tasks.celery_worker import monitor_sessions
+
+# Rocketry
+from pkg.rocketry.scheduler import app as app_rocketry
+session = app_rocketry.session
+
 
 # Mongo DB
 
@@ -166,22 +175,32 @@ def update_poll(poll_id: int,
 
 # endpoint for changing poll status
 @router.put("/user_polls/{poll_id}/status", response_model=Message)
-def change_poll_status(poll_id: int,
-                       payload_status: schemas.PollStatusUpdate,
-                       db: Session = Depends(get_db),
-                       user: User = Depends(get_current_active_user)):
+async def change_poll_status(poll_id: int,
+                             payload_status: schemas.PollStatusUpdate,
+                             db: Session = Depends(get_db),
+                             db_mongo: AsyncIOMotorCollection = Depends(get_mongo_db),
+                             user: User = Depends(get_current_active_user)):
     """
     Эндпойнт для изменения статуса опроса пользователем
 
+    :param db_mongo:
     :param poll_id: Идентификатор опроса
     :param payload_status: Схема для обновления статуса опроса
     :param db: Сессия базы данных
     :param user: Текущий активный пользователь
 
     """
+    task = None
     try:
         poll = service.update_poll_status(db=db, poll_id=poll_id, payload_status=payload_status, user_id=user.id)
         if poll:
+            logger.info(f'Type Poll uuid - {type(poll.uuid)}')
+            if poll.poll_status == PollStatus.PUBLISHED:
+                # schedule_monitor_sessions(poll_uuid=poll.uuid)
+                pass
+
+            elif poll.poll_status == PollStatus.ENDED:
+                pass
             return JSONResponse(status_code=201,
                                 content={"message": "Poll updated successfully", "poll_url": poll.poll_url})
     except HTTPException as e:
@@ -250,14 +269,11 @@ async def start_poll_session(uuid: UUID,
     :param db: Сессия PostgreSQL
     """
 
-    poll = service.get_poll_by_uuid(db=db, uuid=uuid)
-    if not poll:
-        raise HTTPException(status_code=404, detail="Published Poll not found")
     if db_mongo_session:
         #  Если пользователь заново перейдет по ссылке опроса и нажмет начать второй раз
         raise HTTPException(status_code=401, detail="Вы уже проходите в данный момент опрос!")
 
-    session_id, token = await create_user_session(db_mongo=db_mongo, poll=poll, fingerprint=fingerprint)
+    session_id, token = await create_user_session(db=db, uuid=uuid, db_mongo=db_mongo, fingerprint=fingerprint)
     session_id_str = str(session_id)
     return {
         "token": token,
@@ -313,3 +329,4 @@ def get_poll_report(poll_id: int, db: Session = Depends(get_db), user: User = De
     :return: Отчет по опросу"""
     report = service.get_poll_report(db=db, poll_id=poll_id)
     return report
+

@@ -68,3 +68,14 @@ MONGO_PASSWORD = os.getenv("MONGO_INITDB_ROOT_PASSWORD")
 
 # mongosh "mongodb://localhost:27017/DB_MONGO" --username root --password Qwe123rty --authenticationDatabase admin
 # db.sessions.find()
+
+
+# REDIS
+REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
+
+# CELERY
+REDIS_URL = os.getenv("REDIS_URL")
+BROKER_URL = os.getenv("BROKER_URL")
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND")
+
+

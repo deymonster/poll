@@ -120,10 +120,7 @@ async def get_poll_session(token: Optional[str] = Header(None),
                            db_mongo: AsyncIOMotorCollection = Depends(get_mongo_db)
                            ) -> Optional[UserSession]:
     """Получение информации о сессии пользователя который проходит опрос"""
-    logger.info(f'token - {token}')
-    logger.info(f'fingerprint - {fingerprint}')
-    logger.info(f'uuid - {uuid}')
-    logger.info(f'db_mongo - {db_mongo}')
+
     if token:
         try:
             payload = jwt.decode(token, config.SECRET_KEY, algorithm=ALGORITHM)
@@ -144,6 +141,8 @@ async def get_poll_session(token: Optional[str] = Header(None),
         logger.info(f'Mongo session by token - {mongo_user_session}')
 
         if mongo_user_session:
+            logger.info(f'Finger print from HEADER - {fingerprint}')
+            logger.info(f'Finger print from Session - {mongo_user_session.get("fingerprint")}')
             if fingerprint and mongo_user_session.get("fingerprint") != fingerprint:
                 raise HTTPException(status_code=401, detail="Invalid fingerprint")
             expires_at = mongo_user_session.get("expires_at")
