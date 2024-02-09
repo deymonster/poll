@@ -46,46 +46,7 @@ services:
       - pool-db
       - poll-mongo
 
-  poll-redis:
-    image: "redis:alpine"
-    container_name: poll-redis
-    env_file:
-      - .env
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/bitnami/redis/data
 
-  poll-celery:
-    build:
-      context: .
-      dockerfile: _configs/Dockerfile
-    container_name: poll-celery
-    command: "celery -A pkg.celery.tasks.celery_worker worker --loglevel=info"
-    env_file:
-      - .env
-    depends_on:
-      - pool-app
-      - poll-redis
-      - pool-db
-    volumes:
-      - ./src:/home/pool_users/app
-
-
-  poll-flower:
-    build:
-      context: .
-      dockerfile: _configs/Dockerfile
-    container_name: poll-flower
-    command: "celery -A pkg.celery.tasks.celery_app flower"
-    env_file:
-      - .env
-    ports:
-      - "5555:5555"
-    depends_on:
-      - poll-redis
-    volumes:
-      - ./src:/home/pool_users/app
 
 #  poll-ui:
 #    build:

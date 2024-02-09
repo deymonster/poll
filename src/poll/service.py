@@ -206,7 +206,7 @@ def get_all_user_poll(db: Session, user_id: int, status: Optional[PollStatus] = 
     :param status: PollStatus (optional)
     :return: List[Model Poll]
     """
-    selected_fields = [models.Poll.id, models.Poll.created_at, models.Poll.title, models.Poll.description,
+    selected_fields = [models.Poll.id, models.Poll.uuid, models.Poll.created_at, models.Poll.title, models.Poll.description,
                        models.Poll.poll_cover, models.Poll.poll_status]
     query = db.query(*selected_fields).filter(models.Poll.user_id == user_id)
 

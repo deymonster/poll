@@ -31,11 +31,7 @@ from datetime import datetime, timedelta
 from uuid import UUID
 
 from api.utils.logger import PollLogger
-from pkg.celery.tasks.celery_worker import monitor_sessions
 
-# Rocketry
-from pkg.rocketry.scheduler import app as app_rocketry
-session = app_rocketry.session
 
 
 # Mongo DB
@@ -237,14 +233,24 @@ def get_poll(poll_id: int, db: Session = Depends(get_db), user: User = Depends(g
 
 # Получение детальной информации об опросе UUID
 @router.get("/uuid_poll/{uuid}")
-def get_poll(uuid: UUID, db: Session = Depends(get_db)) -> SinglePollOut:
+def get_poll(uuid: UUID,
+             db: Session = Depends(get_db),
+             db_mongo_session: UserSession = Depends(get_poll_session)
+             ) -> SinglePollOut:
     """ Эндпойнт для получения детальной информации об опросе включая все вопросы и варианты ответы на них для прохождения опроса
+
 
     :param uuid: Идентификатор UUID опроса
     :param db: Сессия базы данных
+    :param db_mongo_session: Сессия полученная из Mongo
     :return poll  Опрос пользователя со всеми данными
 
     """
+    if db_mongo_session:
+        logger.info('409 Status')
+        #  Если пользователь заново перейдет по ссылке опроса и нажмет начать второй раз
+        raise HTTPException(status_code=409, detail="Вы прошли опрос!")
+
     poll = service.get_poll_by_uuid(db=db, uuid=uuid)
 
     if not poll:

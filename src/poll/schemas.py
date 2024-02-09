@@ -129,6 +129,7 @@ class PollBase(CamelModelMixin):
 
 class Poll(CamelModelMixin):
     id: int
+    uuid: UUID
     created_at: datetime
     title: str
     description: Optional[str] = None

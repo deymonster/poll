@@ -52,8 +52,6 @@ async def db_session_middleware(request: Request, call_next):
         request.state.db.close()
     return response
 
-# app.add_middleware(MongoDBMiddleware, mongo_manager=mongo_manager)
-
 
 @app.on_event("startup")
 async def startup_event():
