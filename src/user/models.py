@@ -5,6 +5,7 @@ from db.base_class import Base
 from sqlalchemy.dialects.postgresql import UUID
 from enum import Enum
 from company.models import Company
+from core.config import DEFAULT_AVATAR_PATH
 
 
 class UserRole(str, Enum):
@@ -29,6 +30,7 @@ class User(Base):
     _roles = Column("roles", String, default=UserRole.USER.value)
     company_id = Column(Integer, ForeignKey("company.id"), nullable=True)
     company = relationship(Company, back_populates="users")
+    avatar = Column(String, nullable=True, default=DEFAULT_AVATAR_PATH)
 
     @property
     def roles(self):

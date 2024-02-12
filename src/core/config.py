@@ -65,7 +65,6 @@ MONGO_USER = os.getenv("MONGO_INITDB_ROOT_USERNAME")
 MONGO_PASSWORD = os.getenv("MONGO_INITDB_ROOT_PASSWORD")
 
 
-
 # mongosh "mongodb://localhost:27017/DB_MONGO" --username root --password Qwe123rty --authenticationDatabase admin
 # db.sessions.find()
 
@@ -77,5 +76,8 @@ REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
 REDIS_URL = os.getenv("REDIS_URL")
 BROKER_URL = os.getenv("BROKER_URL")
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND")
+
+# MEDIA CONFIG
+DEFAULT_AVATAR_PATH = "/media/boy-avatar.png.jpg"
 
 
