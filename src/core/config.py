@@ -82,6 +82,3 @@ DEFAULT_AVATAR_PATH = "/media/boy-avatar.png.jpg"
 
 
 
-
-
-
