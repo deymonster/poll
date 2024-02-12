@@ -77,9 +77,11 @@ REDIS_URL = os.getenv("REDIS_URL")
 BROKER_URL = os.getenv("BROKER_URL")
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND")
 
-
 # MEDIA CONFIG
 DEFAULT_AVATAR_PATH = "/media/boy-avatar.png.jpg"
+
+
+
 
 
 
