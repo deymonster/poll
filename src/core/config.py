@@ -11,7 +11,7 @@ DB_PASSWORD = os.getenv("POSTGRES_PASSWORD")
 DB_NAME = os.getenv("POSTGRES_DB")
 DB_PORT = os.getenv("DB_PORT", 5432)
 
-
+CLIENT_ORIGIN = os.getenv("CLIENT_ORIGIN")
 API_V1_STR = "/api/v1"
 
 # Secret key
@@ -78,7 +78,7 @@ BROKER_URL = os.getenv("BROKER_URL")
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND")
 
 # MEDIA CONFIG
-DEFAULT_AVATAR_PATH = "/media/boy-avatar.png.jpg"
+DEFAULT_AVATAR_PATH = f"{CLIENT_ORIGIN}/media/boy-avatar.png"
 
 
 
