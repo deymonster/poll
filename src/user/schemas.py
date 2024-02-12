@@ -23,7 +23,7 @@ class UserBase(CamelModelMixin):
     is_active: Optional[bool] = False
     full_name: Optional[str] = None
     roles: List[str] = []
-
+    avatar: str
 
     class Config:
         from_attributes = True
@@ -35,6 +35,7 @@ class UserBaseInDB(UserBase):
     """
     id: Optional[int] = None
     company_id: Optional[int] = None
+
 
 
 class UserCreate(UserBase):
