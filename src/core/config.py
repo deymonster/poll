@@ -65,7 +65,7 @@ MONGO_USER = os.getenv("MONGO_INITDB_ROOT_USERNAME")
 MONGO_PASSWORD = os.getenv("MONGO_INITDB_ROOT_PASSWORD")
 
 
-# mongosh "mongodb://localhost:27017/DB_MONGO" --username root --password Qwe123rty --authenticationDatabase admin
+
 # db.sessions.find()
 
 
@@ -80,4 +80,7 @@ CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND")
 # MEDIA CONFIG
 DEFAULT_AVATAR_PATH = "/media/boy-avatar.png.jpg"
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> a449342 (Restore config.py)
