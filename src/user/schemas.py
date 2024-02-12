@@ -23,7 +23,7 @@ class UserBase(CamelModelMixin):
     is_active: Optional[bool] = False
     full_name: Optional[str] = None
     roles: List[str] = []
-
+    avatar: str
 
     class Config:
         from_attributes = True
