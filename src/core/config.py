@@ -11,7 +11,7 @@ DB_PASSWORD = os.getenv("POSTGRES_PASSWORD")
 DB_NAME = os.getenv("POSTGRES_DB")
 DB_PORT = os.getenv("DB_PORT", 5432)
 
-
+CLIENT_ORIGIN = os.getenv("CLIENT_ORIGIN")
 API_V1_STR = "/api/v1"
 
 # Secret key
@@ -66,7 +66,6 @@ MONGO_PASSWORD = os.getenv("MONGO_INITDB_ROOT_PASSWORD")
 
 
 
-# mongosh "mongodb://localhost:27017/DB_MONGO" --username root --password Qwe123rty --authenticationDatabase admin
 # db.sessions.find()
 
 
@@ -77,5 +76,9 @@ REDIS_PASSWORD = os.getenv("REDIS_PASSWORD")
 REDIS_URL = os.getenv("REDIS_URL")
 BROKER_URL = os.getenv("BROKER_URL")
 CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND")
+
+# MEDIA CONFIG
+DEFAULT_AVATAR_PATH = f"{CLIENT_ORIGIN}/media/boy-avatar.png"
+
 
 

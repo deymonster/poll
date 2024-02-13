@@ -34,6 +34,8 @@ from api.utils.logger import PollLogger
 
 
 
+
+
 # Mongo DB
 
 # mongo_db = mongo_manager.get_database()

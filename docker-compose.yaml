@@ -47,7 +47,6 @@ services:
       - poll-mongo
 
 
-
 #  poll-ui:
 #    build:
 #      dockerfile: _configs/DockerfileUI
