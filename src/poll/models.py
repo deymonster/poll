@@ -83,7 +83,6 @@ class Choice(Base):
     text_fields_count = Column(Integer, nullable=True)
     question_id = Column(Integer, ForeignKey("question.id"))
     question = relationship("Question", back_populates="choice")
-    response = relationship("Response", back_populates="choice")
 
 
 # Model Response
@@ -96,8 +95,7 @@ class Response(Base):
     poll = relationship("Poll", back_populates="response")
     question_id = Column(Integer, ForeignKey("question.id"))
     question = relationship("Question", back_populates="response")
-    choice_id = Column(Integer, ForeignKey("choice.id"))
-    choice = relationship("Choice", back_populates="response")
+
     answer_text = Column(JSON, nullable=True)
     answer_choice = Column(JSON, nullable=True)
 

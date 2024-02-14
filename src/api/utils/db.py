@@ -22,7 +22,6 @@ def get_db(request: Request):
 
 
 async def get_mongo_db(request: Request):
-    logger.info('Request to state.mongo_db')
     return request.state.mongo_db
 
 
