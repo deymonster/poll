@@ -478,24 +478,22 @@ def update_question(db: Session, question_id: int, question: schemas.UpdateQuest
 # utility common function for creating response in db
 def create_response(db: Session,
                     db_question: models.Question,
-                    single_choice_id=None,
-                    multiple_choice_ids=None,
-                    answer_text=None):
+                    answer_text=None,
+                    answer_choice=None):
     """Создание ответа на вопрос - общая функция для всех обработчиков
+
+
     :param db: сессия БД,
-    :param poll_id: id опроса,
     :param db_question: модель вопроса,
-    :param single_choice_id: id варианта ответа для вопроса с одним вариантом ответа,
-    :param multiple_choice_ids: id вариантов ответа для вопроса с несколькими вариантами ответа,
     :param answer_text: текст ответа для вопроса с текстовым ответом,
+    :param answer_choice: id варианта ответа может быть списков из нескольких элементов
     """
 
     db_response = models.Response(
         poll_id=db_question.poll_id,
         question_id=db_question.id,
-        choice_id=single_choice_id,
-        answer_choice=multiple_choice_ids,
-        answer_text=answer_text
+        answer_text=answer_text,
+        answer_choice=answer_choice
     )
     db.add(db_response)
     db.commit()
@@ -568,6 +566,7 @@ async def create_new_response(db: Session,
                                 detail=f"Question with given ID  - {single_response.question_id} not found")
         # Check the question type and handle the response accordingly
         question_handler = question_handlers.get(db_question.type)
+        logger.info(f'Question handler - {question_handler}')
         if question_handler is None:
             raise HTTPException(status_code=500, detail="Invalid question type")
         db_response = question_handler(db, db_question, single_response)
@@ -582,22 +581,24 @@ def handle_single_choice_response(db, db_question: models.Question, response_dat
     """
     Обработчик ответа на вопрос с одним вариантом ответа
 
+
     :param db: сессия БД,
     :param db_question: модель вопроса,
     :param response_data: общая схема для создания ответа на вопрос
     :return create_response
     """
-    # logger.info(response_data.choice_id)
+
     # check that response data has only choice_id for single choice question
     if not (response_data.choice_id or response_data.choice_ids) or response_data.choice_text:
         raise HTTPException(status_code=400, detail="Invalid answer data for single choice question")
     validate_choice(db, db_question.id, response_data.choice_id)
-    return create_response(db, db_question, single_choice_id=response_data.choice_id)
+    return create_response(db, db_question, answer_choice=[response_data.choice_id])
 
 
 def handle_multiple_choice_response(db, db_question: models.Question, response_data: schemas.ResponsePayload):
     """
     Обработчик ответа на вопрос с несколькими вариантами ответа
+
 
     :param db: сессия БД,
     :param db_question: модель вопроса,
@@ -609,12 +610,14 @@ def handle_multiple_choice_response(db, db_question: models.Question, response_d
         raise HTTPException(status_code=400, detail="Invalid answer data for multiple choice question")
     for choice_id in response_data.choice_ids:
         validate_choice(db, db_question.id, choice_id)
-    return create_response(db, db_question, multiple_choice_ids=response_data.choice_ids)
+
+    return create_response(db, db_question, answer_choice=response_data.choice_ids)
 
 
 def handle_text_response(db, db_question: models.Question, response_data: schemas.ResponsePayload):
     """
     Обработчик ответа на вопрос с одним или несколькими текстовыми ответоми
+
 
     :param db: сессия БД,
     :param db_question: модель вопроса,
@@ -668,10 +671,45 @@ def get_all_poll_responses(db: Session, poll_id: int, user_id: int):
     :param user_id:
     :return: responses
     """
-    db_poll = db.query(models.Poll).filter(models.Poll.id == poll_id).filter(models.Poll.user_id == user_id).first()
+    db_poll = (
+        db.query(models.Poll)
+        .options(
+            joinedload(models.Poll.question)
+        )
+        .filter(models.Poll.id == poll_id)
+        .filter(models.Poll.user_id == user_id)
+        .first()
+    )
     if not db_poll:
         raise HTTPException(status_code=404, detail="Poll not found")
-    return db.query(models.Response).filter(models.Response.poll_id == poll_id).all()
+    results = []
+    logger.info(f'Poll question - {db_poll.question}')
+    for question in db_poll.question:
+        # Получаем все ответы на текущий вопрос
+        responses = question.response
+        # Собираем статистику по ответам
+        answer_stats = {}
+        for response in responses:
+            if response.answer_choice:
+                # Если ответ представляет собой выбор
+                for choice_id in response.answer_choice:
+                    choice_text = db.query(models.Choice).get(choice_id).text
+                    if choice_text not in answer_stats:
+                        answer_stats[choice_text] = 1
+                    else:
+                        answer_stats[choice_text] += 1
+            elif response.answer_text:
+                # Если ответ представляет собой текст
+                if response.answer_text not in answer_stats:
+                    answer_stats[response.answer_text] = 1
+                else:
+                    answer_stats[response.answer_text] += 1
+        result = {
+            "question_title": question.text,
+            "items": answer_stats
+        }
+        results.append(result)
+    return results
 
 
 def get_poll_report(db: Session, poll_id: int):

@@ -138,11 +138,9 @@ async def get_poll_session(token: Optional[str] = Header(None),
 
         # Получение сессии из MongoDB
         mongo_user_session = await db_mongo.find_one({"token": token})
-        logger.info(f'Mongo session by token - {mongo_user_session}')
 
         if mongo_user_session:
-            logger.info(f'Finger print from HEADER - {fingerprint}')
-            logger.info(f'Finger print from Session - {mongo_user_session.get("fingerprint")}')
+
             if fingerprint and mongo_user_session.get("fingerprint") != fingerprint:
                 raise HTTPException(status_code=401, detail="Invalid fingerprint")
             expires_at = mongo_user_session.get("expires_at")

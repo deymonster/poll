@@ -307,7 +307,7 @@ async def create_poll_response(uuid: UUID, poll_responses: schemas.CreatePollRes
     :param db_mongo_session: Сессия полученная из Mongo
     :return message: Сообщение об  успешном создании ответов на все вопросы опроса
     """
-    logger.info(f"Session from MONGO - {db_mongo_session}")
+
     await service.create_new_response(db=db, db_mongo=db_mongo,
                                       poll_responses=poll_responses, uuid=uuid,
                                       db_mongo_session=db_mongo_session)
@@ -315,7 +315,7 @@ async def create_poll_response(uuid: UUID, poll_responses: schemas.CreatePollRes
 
 
 # endpoint for getting all responses for poll
-@router.get("/user_polls/{poll_id}/responses", response_model=List[schemas.ResponsePayload])
+@router.get("/user_polls/{poll_id}/responses", response_model=List[schemas.QuestionStatItem])
 def get_poll_responses(poll_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_active_user)):
     """Эндпоинт для получения всех ответов на опрос
     :param poll_id: Идентификатор опроса
@@ -327,7 +327,7 @@ def get_poll_responses(poll_id: int, db: Session = Depends(get_db), user: User =
 
 
 # endpoint for getting report from respnonses
-@router.get("/user_polls/{poll_id}/report")
+@router.get("/user_polls/{poll_id}/report", deprecated=True)
 def get_poll_report(poll_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_active_user)):
     """Эндпоинт для получения отчета по опросу
 
