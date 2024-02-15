@@ -671,10 +671,45 @@ def get_all_poll_responses(db: Session, poll_id: int, user_id: int):
     :param user_id:
     :return: responses
     """
-    db_poll = db.query(models.Poll).filter(models.Poll.id == poll_id).filter(models.Poll.user_id == user_id).first()
+    db_poll = (
+        db.query(models.Poll)
+        .options(
+            joinedload(models.Poll.question)
+        )
+        .filter(models.Poll.id == poll_id)
+        .filter(models.Poll.user_id == user_id)
+        .first()
+    )
     if not db_poll:
         raise HTTPException(status_code=404, detail="Poll not found")
-    return db.query(models.Response).filter(models.Response.poll_id == poll_id).all()
+    results = []
+    logger.info(f'Poll question - {db_poll.question}')
+    for question in db_poll.question:
+        # Получаем все ответы на текущий вопрос
+        responses = question.response
+        # Собираем статистику по ответам
+        answer_stats = {}
+        for response in responses:
+            if response.answer_choice:
+                # Если ответ представляет собой выбор
+                for choice_id in response.answer_choice:
+                    choice_text = db.query(models.Choice).get(choice_id).text
+                    if choice_text not in answer_stats:
+                        answer_stats[choice_text] = 1
+                    else:
+                        answer_stats[choice_text] += 1
+            elif response.answer_text:
+                # Если ответ представляет собой текст
+                if response.answer_text not in answer_stats:
+                    answer_stats[response.answer_text] = 1
+                else:
+                    answer_stats[response.answer_text] += 1
+        result = {
+            "question_title": question.text,
+            "items": answer_stats
+        }
+        results.append(result)
+    return results
 
 
 def get_poll_report(db: Session, poll_id: int):
