@@ -1,8 +1,12 @@
 from typing import Optional, List
 from urllib.parse import urlparse
 from datetime import datetime
+from pathlib import Path
+from mimetypes import guess_type
+import shutil
+from core.local_config import settings
 
-from fastapi import HTTPException, Request, BackgroundTasks
+from fastapi import HTTPException, Request, BackgroundTasks, UploadFile
 
 from sqlalchemy.orm import Session
 
@@ -14,7 +18,6 @@ from user.models import User, UserRole
 from user.schemas import UserCreate, UserUpdate, UserCreateByEmail
 from api.utils.logger import PollLogger
 from utils import generate_registration_token, send_new_account_email
-
 
 # Logging
 logger = PollLogger(__name__)
@@ -94,7 +97,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         return db_obj
 
     def authenticate(
-        self, db_session: Session, *, email: str, password: str
+            self, db_session: Session, *, email: str, password: str
     ) -> Optional[User]:
         """
         Метод аутентификации пользователя
@@ -123,7 +126,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         return user.is_active
 
     def get_multi(
-        self, db_session: Session, current_user: User, *, skip=0, limit=100
+            self, db_session: Session, current_user: User, *, skip=0, limit=100
     ) -> List[ModelType]:
         """
         Метод получения списка пользователей
@@ -141,7 +144,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         return query.offset(skip).limit(limit).all()
 
     def get_or_404(
-        self, db_session: Session, user_id: int, current_user: User
+            self, db_session: Session, user_id: int, current_user: User
     ) -> ModelType:
         """
         Метод получения пользователя или 404
@@ -163,12 +166,12 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         return user
 
     def update(
-        self,
-        db_session: Session,
-        current_user: User,
-        *,
-        db_obj: Optional[ModelType] = None,
-        update_data: UserUpdate,
+            self,
+            db_session: Session,
+            current_user: User,
+            *,
+            db_obj: Optional[ModelType] = None,
+            update_data: UserUpdate,
     ) -> ModelType:
         """
         Метод обновления пользователя
@@ -235,13 +238,13 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
 
     # register user by email
     def register_user(
-        self,
-        db_session: Session,
-        request: Request,
-        current_user: User,
-        *,
-        obj_in: UserCreateByEmail,
-        background_tasks: BackgroundTasks,
+            self,
+            db_session: Session,
+            request: Request,
+            current_user: User,
+            *,
+            obj_in: UserCreateByEmail,
+            background_tasks: BackgroundTasks,
     ):
         """
         Метод регистрации пользователя
@@ -262,7 +265,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         match True:
             case _ if UserRole.ADMIN in current_user.roles:
                 if not can_invite_new_users(
-                    db=db_session, company_id=current_user.company_id
+                        db=db_session, company_id=current_user.company_id
                 ):
                     raise HTTPException(
                         status_code=400,
@@ -316,6 +319,37 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         )
 
         return {"message": "Registration email sent to user"}
+
+    def upload_user_avatar(self, db_session: Session, file: UploadFile, user_id: int, current_user: User):
+        """"
+        Метод для загрузки изображения аватарки на сервер
+
+
+        :param db_session: Сессия БД
+        :param file: Загружаемый файл
+        :param user_id: ID пользователя
+        :param current_user:  Текущий пользователь
+        :return Path: полный путь до изображения
+        """
+
+        # check if file is an image
+        mime_type, _ = guess_type(file.filename)
+        if not mime_type or not mime_type.startswith("image"):
+            raise HTTPException(status_code=400, detail="File must be an image")
+        user = self.get_or_404(db_session=db_session, user_id=user_id, current_user=current_user)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        file_name = f"{user_id}_{file.filename}"
+        path = f"{file_name}"
+        try:
+            with open(f"{settings.MEDIA_ROOT}/{file_name}", "wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+        except IOError:
+            raise HTTPException(status_code=500, detail="Could not upload file")
+
+        return Path(path)
+
+
 
 
 crud_user = CRUDUser(User)

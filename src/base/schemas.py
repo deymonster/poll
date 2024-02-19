@@ -46,6 +46,10 @@ class Message(CamelModelMixin):
     message: str
 
 
+class AvatarUpload(Message):
+    path_to_avatar:  str
+
+
 class TokenVerificationResponse(CamelModelMixin):
     message: str
     email: str
