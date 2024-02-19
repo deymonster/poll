@@ -29,7 +29,7 @@ class Settings(BaseSettings):
 settings = Settings()
 
 PROJECT_NAME = "TestDesk"
-SERVER_HOST = 'http://127.0.0.1:8000'
+SERVER_HOST = 'http://127.0.0.1:5000'
 
 
 

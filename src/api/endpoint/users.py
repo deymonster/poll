@@ -1,7 +1,8 @@
 from typing import List, Optional
 from urllib.parse import urlparse
+from core.local_config import SERVER_HOST
 
-from fastapi import APIRouter, Depends, Body, HTTPException
+from fastapi import APIRouter, Depends, Body, HTTPException, UploadFile, File
 from fastapi.encoders import jsonable_encoder
 from pydantic import EmailStr
 
@@ -9,7 +10,7 @@ from sqlalchemy.orm import Session
 from fastapi import Request
 from starlette.responses import JSONResponse
 
-from base.schemas import Message, TokenVerificationResponse
+from base.schemas import Message, TokenVerificationResponse, AvatarUpload
 from company.service import delete_invitation, get_invitation_by_token, change_invitation_status
 from core import config
 from core.security import get_password_hash
@@ -349,6 +350,8 @@ def delete_user(*, db: Session = Depends(get_db), user_id: int,
                 current_user: User = Depends(get_current_active_user),
                 ):
     """Эндпойнт для удаления пользователя
+
+
     :param db Сессия базы данных
     :param user_id ID пользователя
     :param current_user текущий пользователя с правами суперадмин
@@ -365,3 +368,29 @@ def delete_user(*, db: Session = Depends(get_db), user_id: int,
         return {"message": "User was deleted"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error while deleting user {e}")
+
+
+# endpoint for uploading user avatar
+@router.post("/upload_avatar/{user_id}", response_model=AvatarUpload)
+def upload_avatar(user_id: int,
+                  db: Session = Depends(get_db),
+                  file: UploadFile = File(...),
+                  current_user: User = Depends(get_current_active_user)
+                  ):
+    try:
+        path_to_avatar = crud_user.upload_user_avatar(db_session=db,
+                                                      file=file,
+                                                      user_id=user_id,
+                                                      current_user=current_user)
+        return {
+            "message": "Avatar uploaded successfully",
+            "path_to_avatar": f"{SERVER_HOST}/media/{str(path_to_avatar)}"}
+    except HTTPException as e:
+        return {"message": str(e.detail)}
+
+
+
+
+
+
+

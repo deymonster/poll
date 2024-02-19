@@ -1,4 +1,5 @@
 import shutil
+
 import copy
 from datetime import datetime, timezone, timedelta
 
@@ -406,7 +407,7 @@ def upload_poll_cover(db: Session, file: UploadFile, poll_id: int, user_id: int)
     db_poll = db.query(models.Poll).filter(models.Poll.id == poll_id).filter(models.Poll.user_id == user_id).first()
     if not db_poll:
         raise HTTPException(status_code=403, detail="You do not have rights to change this poll")
-    # uplaod file
+    # upload file
     file_name = f"{poll_id}_{file.filename}"
     path = f"{file_name}"
     try:
