@@ -266,9 +266,11 @@ class ResponsePayload(CamelModelMixin):
 class CreatePollResponse(CamelModelMixin):
     responses: List[ResponsePayload]
 
+
 class QuestionStatItem(CamelModelMixin):
     question_title: str
     items: Dict[str, int]
+
 
 class ListResponses(CamelModelMixin):
     id: int

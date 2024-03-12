@@ -318,6 +318,8 @@ async def create_poll_response(uuid: UUID, poll_responses: schemas.CreatePollRes
 @router.get("/user_polls/{poll_id}/responses", response_model=List[schemas.QuestionStatItem])
 def get_poll_responses(poll_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_active_user)):
     """Эндпоинт для получения всех ответов на опрос
+
+
     :param poll_id: Идентификатор опроса
     :param db: Сессия базы данных
     :param user: Текущий активный пользователь

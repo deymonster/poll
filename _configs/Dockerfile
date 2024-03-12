@@ -33,3 +33,4 @@ RUN             poetry install --no-root
 COPY            ./src/* ${PROJECTPATH}
 
 USER            ${USER}
+

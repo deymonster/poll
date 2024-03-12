@@ -45,6 +45,7 @@ services:
     depends_on:
       - pool-db
       - poll-mongo
+    user: "${UID}:${GID}"
 
 
 #  poll-ui:
