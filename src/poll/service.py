@@ -213,6 +213,7 @@ def get_all_user_poll(db: Session, user_id: int, status: Optional[PollStatus] = 
 
     if status:
         query = query.filter(models.Poll.poll_status == status)
+    query = query.order_by(desc(models.Poll.created_at))
     return query.all()
 
 
