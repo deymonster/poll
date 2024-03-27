@@ -11,6 +11,7 @@ from core.jwt import create_anonymous_user_token
 # from pkg.celery.tasks.celery_app import schedule_monitor_sessions
 from poll.models import PollStatus
 
+from starlette.responses import Response
 
 from poll.schemas import QuestionPage, Question, SinglePoll, SinglePollOut, UserSession
 from api.utils.security import get_current_user, get_current_active_user, get_poll_session
@@ -192,7 +193,6 @@ async def change_poll_status(poll_id: int,
     try:
         poll = service.update_poll_status(db=db, poll_id=poll_id, payload_status=payload_status, user_id=user.id)
         if poll:
-            logger.info(f'Type Poll uuid - {type(poll.uuid)}')
             if poll.poll_status == PollStatus.PUBLISHED:
                 # schedule_monitor_sessions(poll_uuid=poll.uuid)
                 pass
@@ -211,12 +211,14 @@ async def change_poll_status(poll_id: int,
 @router.delete("/user_polls/{poll_id}", response_model=Message)
 def delete_user_poll(poll_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_active_user)):
     """ Эндпойнт для удаления опроса пользователем
+
     :param poll_id: Идентификатор опроса
     :param db: Сессия базы данных
     :param user: Текущий активный пользователь
-    :return message: Сообщение об  успешном удалении опроса"""
+    :return message: Сообщение об  успешном удалении опроса
+    """
     service.delete_poll_by_user(db=db, poll_id=poll_id, user_id=user.id)
-    return JSONResponse(status_code=204, content={"message": "Poll was deleted"})
+    return Response(status_code=204)
 
 
 # Получение детальной информации об опросе
@@ -235,7 +237,7 @@ def get_poll(poll_id: int, db: Session = Depends(get_db), user: User = Depends(g
 
 # Получение детальной информации об опросе UUID
 @router.get("/uuid_poll/{uuid}")
-def get_poll(uuid: UUID,
+def get_poll(uuid: UUID = Path(...),
              db: Session = Depends(get_db),
              db_mongo_session: UserSession = Depends(get_poll_session)
              ) -> SinglePollOut:
@@ -248,10 +250,13 @@ def get_poll(uuid: UUID,
     :return poll  Опрос пользователя со всеми данными
 
     """
-    if db_mongo_session:
-        logger.info('409 Status')
-        #  Если пользователь заново перейдет по ссылке опроса и нажмет начать второй раз
-        raise HTTPException(status_code=409, detail="Вы прошли опрос!")
+
+    if db_mongo_session and db_mongo_session['poll_uuid'] != str(uuid):
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={"status": "token-mismatch",
+                     "message": "Токен не соответствует запрашиваемому опросу. Необходимо начать новую сессию."}
+        )
 
     poll = service.get_poll_by_uuid(db=db, uuid=uuid)
 
@@ -262,8 +267,8 @@ def get_poll(uuid: UUID,
 
 # Генерация анонимного токена для опроса по UUID и по текущему времени
 @router.post("/uuid_poll/{uuid}/start")
-async def start_poll_session(uuid: UUID,
-                             fingerprint: schemas.FingerPrint,
+async def start_poll_session(fingerprint: schemas.FingerPrint,
+                             uuid: UUID = Path(...),
                              db_mongo: AsyncIOMotorCollection = Depends(get_mongo_db),
                              db_mongo_session: UserSession = Depends(get_poll_session),
                              db: Session = Depends(get_db)):
@@ -278,8 +283,15 @@ async def start_poll_session(uuid: UUID,
     """
 
     if db_mongo_session:
-        #  Если пользователь заново перейдет по ссылке опроса и нажмет начать второй раз
-        raise HTTPException(status_code=401, detail="Вы уже проходите в данный момент опрос!")
+        if db_mongo_session.poll_uuid != str(uuid):
+            return JSONResponse(
+                status_code=status.HTTP_200_OK,
+                content={"status": "token-mismatch",
+                         "message": "Токен не соответствует запрашиваемому опросу. Необходимо начать новую сессию."}
+            )
+        else:
+            if mongo_user_session.get("answered"):
+                raise HTTPException(status_code=403, detail="Вы уже прошли данный опрос!")
 
     session_id, token = await create_user_session(db=db, uuid=uuid, db_mongo=db_mongo, fingerprint=fingerprint)
     session_id_str = str(session_id)
@@ -295,7 +307,7 @@ async def start_poll_session(uuid: UUID,
 async def create_poll_response(uuid: UUID, poll_responses: schemas.CreatePollResponse,
                                db: Session = Depends(get_db),
                                db_mongo: AsyncIOMotorCollection = Depends(get_mongo_db),
-                               db_mongo_session: UserSession = Depends(get_poll_session)):
+                               db_mongo_session: Optional[UserSession] = Depends(get_poll_session)):
     """
     Эндпойнт для создания ответа на все вопросы опроса
 
@@ -307,6 +319,8 @@ async def create_poll_response(uuid: UUID, poll_responses: schemas.CreatePollRes
     :param db_mongo_session: Сессия полученная из Mongo
     :return message: Сообщение об  успешном создании ответов на все вопросы опроса
     """
+    if db_mongo_session is None:
+        raise HTTPException(status_code=HTTP_404_NOT_FOUND, detail="Сессия не найдена.")
 
     await service.create_new_response(db=db, db_mongo=db_mongo,
                                       poll_responses=poll_responses, uuid=uuid,

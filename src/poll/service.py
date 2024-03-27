@@ -6,7 +6,8 @@ from datetime import datetime, timezone, timedelta
 import bson
 from fastapi import HTTPException, UploadFile, Depends
 from fastapi.encoders import jsonable_encoder
-from sqlalchemy import func
+from sqlalchemy import func, desc
+
 
 from sqlalchemy.orm import Session, joinedload, class_mapper, RelationshipProperty
 from motor.motor_asyncio import AsyncIOMotorCollection
@@ -28,6 +29,7 @@ from uuid import UUID, uuid4
 from .models import PollStatus, Response
 from .schemas import QuestionType, StatusPoll, UserSession
 from api.utils.logger import PollLogger
+from .session_data import SessionData
 
 
 
@@ -343,7 +345,8 @@ def update_poll_status(db: Session, poll_id: int, payload_status: schemas.PollSt
     if not db_poll:
         raise HTTPException(status_code=404, detail="Poll not found")
     # otherwise update poll
-    if payload_status.poll_status:
+    new_status = payload_status.poll_status
+    if new_status == StatusPoll.PUBLISHED:
         if not db_poll.question:
             raise HTTPException(status_code=400, detail="At least one question is required to publish the poll")
         for question in db_poll.question:
@@ -352,11 +355,17 @@ def update_poll_status(db: Session, poll_id: int, payload_status: schemas.PollSt
                                     detail="Each question must have at least one choice to publish the poll")
         db_poll.poll_status = PollStatus.PUBLISHED
         db_poll.poll_url = f"/poll/{db_poll.uuid}"
-
-
-    else:
-        db_poll.poll_status = PollStatus.DRAFT
+    elif new_status == StatusPoll.DRAFT or StatusPoll.ENDED:
+        # Сброс URL, если опрос переводится в черновик, завершается вручную
         db_poll.poll_url = None
+    elif new_status == StatusPoll.ARCHIVED:
+        # Архивация опроса
+        # Здесь может быть логика для архивации опроса
+        pass
+    else:
+        raise HTTPException(status_code=400, detail="Invalid poll status")
+
+    db_poll.poll_status = new_status
     db.add(db_poll)
     db.commit()
     db.refresh(db_poll)
@@ -579,6 +588,20 @@ async def create_new_response(db: Session,
     return response_objects
 
 
+# async def handle_poll_status(db: Session,
+#                              poll_status: schemas.PollStatus,
+#                              db_mongo: AsyncIOMotorCollection = Depends(get_mongo_db),
+#                              uuid: UUID = None
+#                              ) -> None:
+#     """Обрабатывает статус опроса и управляет сессиями MongoDB в соответствии с этим статусом.
+#
+#     :param db: сессия БД,
+#     :param poll_status: статус опроса,
+#     :param db_mongo: Клиент MongoDB
+#     """
+
+
+
 def handle_single_choice_response(db, db_question: models.Question, response_data: schemas.ResponsePayload):
     """
     Обработчик ответа на вопрос с одним вариантом ответа
@@ -781,34 +804,36 @@ async def create_user_session(db: Session, uuid: UUID,
     poll = get_poll_by_uuid(db=db, uuid=uuid)
     if not poll:
         raise HTTPException(status_code=404, detail="Published Poll not found")
-
+    if poll.poll_status == PollStatus.CLOSED:
+        raise HTTPException(status_code=400, detail="This poll is closed and does not accept new participants.")
+    # создаем токен используя uuid опроса и текущее время
     token_data = {"poll_uuid": str(poll.uuid)}
     token = create_anonymous_user_token(data=token_data)
+
 
     max_participants = poll.max_participants
     if max_participants is not None:
         current_participants = await db_mongo.count_documents({"poll_uuid": str(uuid)})
-        if current_participants == max_participants:
+        if current_participants >= max_participants:
+            raise HTTPException(status_code=400, detail="Maximum participants reached for this poll.")
+        elif current_participants == max_participants - 1:
             poll.poll_status = PollStatus.CLOSED
             db.commit()
-            raise HTTPException(status_code=400, detail="Maximum participants reached for this poll.")
 
     expires_at = None
-    expired_status = False
-    answered_status = False
     if poll.active_duration is not None:
         expires_at = datetime.utcnow() + timedelta(minutes=poll.active_duration)
+    expired_status = False
+    answered_status = False
 
-    # Создаем и сохраняем сессию опроса в MongoDB
-    session_data = {"token": token,
-                    "fingerprint": fingerprint.fingerprint,
-                    "poll_uuid": str(uuid),
-                    "expires_at": expires_at,
-                    "expired": expired_status,
-                    "answered": answered_status
-                    }
-
-    result = await db_mongo.insert_one(document=session_data)
+    # создаем объект SessionData и сохраняем сессию опроса в MongoDB
+    session_data = SessionData(
+        token=token,
+        fingerprint=fingerprint.fingerprint,
+        poll_uuid=poll.uuid,
+        expires_at=expires_at
+    )
+    result = await db_mongo.insert_one(document=session_data.to_dict())
     session_id = result.inserted_id
     return session_id, token
 

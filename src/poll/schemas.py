@@ -182,7 +182,7 @@ class UpdatePoll(CamelModelMixin):
 
 
 class PollStatusUpdate(CamelModelMixin):
-    poll_status: bool = False
+    poll_status: StatusPoll
 
 
 class ListPoll(Poll):
