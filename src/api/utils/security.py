@@ -147,7 +147,12 @@ async def get_poll_session(token: Optional[str] = Header(None),
             #     raise HTTPException(status_code=403, detail="Вы уже прошли данный опрос!")
             return mongo_user_session
         else:
-            return None
+            user_session = UserSession(
+                token=token,
+                poll_uuid=str(token_uuid),
+                session_status="notfound"
+            )
+            return user_session.dict()
     return None
 
 
