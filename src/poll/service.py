@@ -560,8 +560,8 @@ async def create_new_response(db: Session,
     if not db_poll:
         raise HTTPException(status_code=404, detail="Poll not found for the user")
     #  Проверка на активность опроса - есть время начала и время окончания опроса
-    # if not db_poll.is_published():
-    #     raise HTTPException(status_code=400, detail="The poll is not active anymore")
+    if db_poll.is_ended():
+        raise HTTPException(status_code=400, detail="The poll is closed!")
     if db_poll.max_participants is not None:
         current_participants = await db_mongo.count_documents({"poll_uuid": str(uuid)})
         if current_participants == db_poll.max_participants:
@@ -593,7 +593,12 @@ async def create_new_response(db: Session,
             raise HTTPException(status_code=500, detail="Invalid question type")
         db_response = question_handler(db, db_question, single_response)
         response_objects.append(db_response)
-
+    # После сохранения всех ответов, проверяем, все ли пользователи ответили
+    completed_sessions = await db_mongo.count_documents({"poll_uuid": str(uuid), "answered": True})
+    total_sessions = await db_mongo.count_documents({"poll_uuid": str(uuid)})
+    if db_poll.max_participants is not None and completed_sessions == db_poll.max_participants:
+        db_poll.poll_status = PollStatus.ENDED
+        db.commit()
     await db_mongo.update_one({"token": token}, {"$set": {"answered": True}})
 
     return response_objects
@@ -827,9 +832,9 @@ async def create_user_session(db: Session, uuid: UUID,
         current_participants = await db_mongo.count_documents({"poll_uuid": str(uuid)})
         if current_participants == max_participants:
             raise HTTPException(status_code=400, detail="Maximum participants reached for this poll.")
-        # elif current_participants == max_participants - 1:
-        #     poll.poll_status = PollStatus.CLOSED
-        #     db.commit()
+        elif current_participants == max_participants - 1:
+            poll.poll_status = PollStatus.CLOSED
+            db.commit()
 
     expires_at = None
     if poll.active_duration is not None:
