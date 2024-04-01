@@ -250,18 +250,20 @@ def get_poll(uuid: UUID = Path(...),
     :return poll  Опрос пользователя со всеми данными
 
     """
-
-    if db_mongo_session and db_mongo_session['poll_uuid'] != str(uuid):
-        return JSONResponse(
-            status_code=status.HTTP_200_OK,
-            content={"status": "token-mismatch",
-                     "message": "Токен не соответствует запрашиваемому опросу. Необходимо начать новую сессию."}
-        )
+    logger.info(f'Mongo session - {db_mongo_session}')
+    if db_mongo_session:
+        if db_mongo_session["poll_uuid"] != str(uuid) or db_mongo_session["session_status"] == "notfound":
+            return JSONResponse(
+                status_code=status.HTTP_200_OK,
+                content={"status": "token-mismatch",
+                         "message": "Необходимо начать новую сессию."}
+            )
+        else:
+            if db_mongo_session["answered"]:
+                raise HTTPException(status_code=403, detail="Вы уже прошли данный опрос!")
 
     poll = service.get_poll_by_uuid(db=db, uuid=uuid)
 
-    if not poll:
-        raise HTTPException(status_code=404, detail="Published Poll not found")
     return poll
 
 
@@ -281,17 +283,6 @@ async def start_poll_session(fingerprint: schemas.FingerPrint,
     :param db_mongo_session: Сессия полученная из Mongo
     :param db: Сессия PostgreSQL
     """
-
-    if db_mongo_session:
-        if db_mongo_session.poll_uuid != str(uuid):
-            return JSONResponse(
-                status_code=status.HTTP_200_OK,
-                content={"status": "token-mismatch",
-                         "message": "Токен не соответствует запрашиваемому опросу. Необходимо начать новую сессию."}
-            )
-        else:
-            if mongo_user_session.get("answered"):
-                raise HTTPException(status_code=403, detail="Вы уже прошли данный опрос!")
 
     session_id, token = await create_user_session(db=db, uuid=uuid, db_mongo=db_mongo, fingerprint=fingerprint)
     session_id_str = str(session_id)

@@ -298,11 +298,12 @@ class PollReportResponse(CamelModelMixin):
 
 class UserSession(CamelModelMixin):
     token: str = Field(...)
-    fingerprint: Optional[str]
+    fingerprint: Optional[str] = None
     poll_uuid: str = Field(...)
-    expires_at: Optional[datetime]
+    expires_at: Optional[datetime] = None
     expired: Optional[bool] = False
     answered: Optional[bool] = False
+    session_status: Optional[str] = None
 
     # class Config:
     #     schema_extra = {

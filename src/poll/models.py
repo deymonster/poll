@@ -43,8 +43,16 @@ class Poll(Base):
     active_duration = Column(Integer, nullable=True)
     max_participants = Column(Integer, nullable=True)
 
+
     def is_published(self):
         if self.poll_status == PollStatus.PUBLISHED:
+            return True
+        else:
+            return None
+
+
+    def is_ended(self):
+        if self.poll_status == PollStatus.ENDED:
             return True
         else:
             return None

@@ -7,7 +7,8 @@ import bson
 from fastapi import HTTPException, UploadFile, Depends
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy import func, desc
-
+from starlette.responses import RedirectResponse, JSONResponse
+from starlette import status
 
 from sqlalchemy.orm import Session, joinedload, class_mapper, RelationshipProperty
 from motor.motor_asyncio import AsyncIOMotorCollection
@@ -107,12 +108,17 @@ def get_poll_by_uuid(db: Session, uuid: UUID):
     if poll is None:
         raise HTTPException(status_code=404, detail="Poll not found")
     if poll.poll_url and poll.poll_status == PollStatus.PUBLISHED:
-        # token_data = {"poll_id": poll.id}
-        # token = create_anonymous_user_token(data=token_data)
-        # setattr(poll, 'token', token)
         return poll
-    else:
-        return None
+    elif poll.poll_status in [PollStatus.CLOSED, PollStatus.ENDED]:
+        return JSONResponse(
+            status_code=status.HTTP_200_OK,
+            content={
+                "status": "poll-closed",
+                "message": "Опрос закрыт или завершен.",
+                "poll_status": poll.poll_status
+            }
+        )
+
 
 
 # create list questions with nested choices - for creating poll
@@ -554,8 +560,14 @@ async def create_new_response(db: Session,
     if not db_poll:
         raise HTTPException(status_code=404, detail="Poll not found for the user")
     #  Проверка на активность опроса - есть время начала и время окончания опроса
-    if not db_poll.is_published():
-        raise HTTPException(status_code=400, detail="The poll is not active anymore")
+    if db_poll.is_ended():
+        raise HTTPException(status_code=400, detail="The poll is closed!")
+    if db_poll.max_participants is not None:
+        current_participants = await db_mongo.count_documents({"poll_uuid": str(uuid)})
+        if current_participants == db_poll.max_participants:
+            db_poll.poll_status = PollStatus.CLOSED
+            db.commit()
+
     # Проверка сессии на то, был ли уже ответ или нет
     if db_mongo_session.get("answered"):
         raise HTTPException(status_code=400, detail="The User Session has an answer")
@@ -577,12 +589,16 @@ async def create_new_response(db: Session,
                                 detail=f"Question with given ID  - {single_response.question_id} not found")
         # Check the question type and handle the response accordingly
         question_handler = question_handlers.get(db_question.type)
-        logger.info(f'Question handler - {question_handler}')
         if question_handler is None:
             raise HTTPException(status_code=500, detail="Invalid question type")
         db_response = question_handler(db, db_question, single_response)
         response_objects.append(db_response)
-
+    # После сохранения всех ответов, проверяем, все ли пользователи ответили
+    completed_sessions = await db_mongo.count_documents({"poll_uuid": str(uuid), "answered": True})
+    total_sessions = await db_mongo.count_documents({"poll_uuid": str(uuid)})
+    if db_poll.max_participants is not None and completed_sessions == db_poll.max_participants:
+        db_poll.poll_status = PollStatus.ENDED
+        db.commit()
     await db_mongo.update_one({"token": token}, {"$set": {"answered": True}})
 
     return response_objects
@@ -814,7 +830,7 @@ async def create_user_session(db: Session, uuid: UUID,
     max_participants = poll.max_participants
     if max_participants is not None:
         current_participants = await db_mongo.count_documents({"poll_uuid": str(uuid)})
-        if current_participants >= max_participants:
+        if current_participants == max_participants:
             raise HTTPException(status_code=400, detail="Maximum participants reached for this poll.")
         elif current_participants == max_participants - 1:
             poll.poll_status = PollStatus.CLOSED
