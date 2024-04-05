@@ -18,7 +18,7 @@ class TypeQuestion(str, Enum):
 class PollStatus(str, Enum):
     DRAFT = "DRAFT"
     PUBLISHED = "PUBLISHED"
-    CLOSED = "CLOSED"
+    # CLOSED = "CLOSED"
     ENDED = "ENDED"
     ARCHIVED = "ARCHIVED"
 
@@ -36,20 +36,18 @@ class Poll(Base):
     poll_url = Column(String, nullable=True)
     user_id = Column(Integer, ForeignKey("user.id"))
     user = relationship(User, back_populates="polls")
-    question = relationship("Question", back_populates="poll")
-    response = relationship("Response", back_populates="poll")
+    question = relationship("Question", back_populates="poll", cascade="all, delete-orphan")
+    response = relationship("Response", back_populates="poll", cascade="all, delete-orphan")
 
     active_from = Column(DateTime, nullable=True)
     active_duration = Column(Integer, nullable=True)
     max_participants = Column(Integer, nullable=True)
-
 
     def is_published(self):
         if self.poll_status == PollStatus.PUBLISHED:
             return True
         else:
             return None
-
 
     def is_ended(self):
         if self.poll_status == PollStatus.ENDED:
@@ -77,8 +75,8 @@ class Question(Base):
     poll_id = Column(Integer, ForeignKey("poll.id"))
     order = Column(Integer, default=10, index=True)
     poll = relationship("Poll", back_populates="question")
-    choice = relationship("Choice", back_populates="question")
-    response = relationship("Response", back_populates="question")
+    choice = relationship("Choice", back_populates="question", cascade="all, delete-orphan")
+    response = relationship("Response", back_populates="question", cascade="all, delete-orphan")
 
 
 # Model choice
@@ -89,7 +87,7 @@ class Choice(Base):
     text = Column(String, index=True)
     choice_cover = Column(String, nullable=True)
     text_fields_count = Column(Integer, nullable=True)
-    question_id = Column(Integer, ForeignKey("question.id"))
+    question_id = Column(Integer, ForeignKey("question.id", ondelete="CASCADE"))
     question = relationship("Question", back_populates="choice")
 
 
@@ -99,9 +97,9 @@ class Response(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
-    poll_id = Column(Integer, ForeignKey("poll.id"))
+    poll_id = Column(Integer, ForeignKey("poll.id", ondelete="CASCADE"))
     poll = relationship("Poll", back_populates="response")
-    question_id = Column(Integer, ForeignKey("question.id"))
+    question_id = Column(Integer, ForeignKey("question.id", ondelete="CASCADE"))
     question = relationship("Question", back_populates="response")
 
     answer_text = Column(JSON, nullable=True)

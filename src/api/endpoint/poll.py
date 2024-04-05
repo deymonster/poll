@@ -1,10 +1,11 @@
-from typing import List, Optional
+from typing import List, Optional, Union
 from fastapi import APIRouter, Depends, HTTPException, Request, Query, UploadFile, File, Path
 from fastapi.encoders import jsonable_encoder
 from sqlalchemy.orm import Session
 from starlette import status
 from starlette.responses import RedirectResponse, JSONResponse
 from motor.motor_asyncio import AsyncIOMotorCollection
+from starlette.status import HTTP_404_NOT_FOUND
 
 from base.schemas import Message
 from core.jwt import create_anonymous_user_token
@@ -13,11 +14,12 @@ from poll.models import PollStatus
 
 from starlette.responses import Response
 
-from poll.schemas import QuestionPage, Question, SinglePoll, SinglePollOut, UserSession
+from poll.schemas import QuestionPage, Question, SinglePoll, SinglePollOut
 from api.utils.security import get_current_user, get_current_active_user, get_poll_session
 from api.utils.db import get_db, get_mongo_db
 from poll import schemas, service
 from poll.service import crud_poll, create_user_session
+from poll.session_data import SessionData
 from user.models import User
 from user.schemas import UserBase
 from api.utils.logger import PollLogger
@@ -32,10 +34,6 @@ from datetime import datetime, timedelta
 from uuid import UUID
 
 from api.utils.logger import PollLogger
-
-
-
-
 
 # Mongo DB
 
@@ -189,18 +187,16 @@ async def change_poll_status(poll_id: int,
     :param user: Текущий активный пользователь
 
     """
-    task = None
-    try:
-        poll = service.update_poll_status(db=db, poll_id=poll_id, payload_status=payload_status, user_id=user.id)
-        if poll:
-            if poll.poll_status == PollStatus.PUBLISHED:
-                # schedule_monitor_sessions(poll_uuid=poll.uuid)
-                pass
 
-            elif poll.poll_status == PollStatus.ENDED:
-                pass
+    try:
+        poll = await service.update_poll_status(db=db,
+                                                poll_id=poll_id,
+                                                db_mongo=db_mongo,
+                                                payload_status=payload_status,
+                                                user_id=user.id)
+        if poll:
             return JSONResponse(status_code=201,
-                                content={"message": "Poll updated successfully", "poll_url": poll.poll_url})
+                                content={"message": "Status of the poll updated successfully", "poll_url": poll.poll_url})
     except HTTPException as e:
         return JSONResponse(status_code=e.status_code, content={"detail": e.detail})
     except Exception as e:
@@ -239,8 +235,8 @@ def get_poll(poll_id: int, db: Session = Depends(get_db), user: User = Depends(g
 @router.get("/uuid_poll/{uuid}")
 def get_poll(uuid: UUID = Path(...),
              db: Session = Depends(get_db),
-             db_mongo_session: UserSession = Depends(get_poll_session)
-             ) -> SinglePollOut:
+             db_mongo_session: SessionData = Depends(get_poll_session)
+             ):
     """ Эндпойнт для получения детальной информации об опросе включая все вопросы и варианты ответы на них для прохождения опроса
 
 
@@ -250,8 +246,9 @@ def get_poll(uuid: UUID = Path(...),
     :return poll  Опрос пользователя со всеми данными
 
     """
-    logger.info(f'Mongo session - {db_mongo_session}')
+
     if db_mongo_session:
+        logger.info(f'Mongo session: {db_mongo_session}')
         if db_mongo_session["poll_uuid"] != str(uuid) or db_mongo_session["session_status"] == "notfound":
             return JSONResponse(
                 status_code=status.HTTP_200_OK,
@@ -272,7 +269,7 @@ def get_poll(uuid: UUID = Path(...),
 async def start_poll_session(fingerprint: schemas.FingerPrint,
                              uuid: UUID = Path(...),
                              db_mongo: AsyncIOMotorCollection = Depends(get_mongo_db),
-                             db_mongo_session: UserSession = Depends(get_poll_session),
+                             db_mongo_session: SessionData = Depends(get_poll_session),
                              db: Session = Depends(get_db)):
     """ Эндпойнт для создания пользовательской сессии по прохождению опроса
 
@@ -298,7 +295,7 @@ async def start_poll_session(fingerprint: schemas.FingerPrint,
 async def create_poll_response(uuid: UUID, poll_responses: schemas.CreatePollResponse,
                                db: Session = Depends(get_db),
                                db_mongo: AsyncIOMotorCollection = Depends(get_mongo_db),
-                               db_mongo_session: Optional[UserSession] = Depends(get_poll_session)):
+                               db_mongo_session: Optional[SessionData] = Depends(get_poll_session)):
     """
     Эндпойнт для создания ответа на все вопросы опроса
 
@@ -332,16 +329,4 @@ def get_poll_responses(poll_id: int, db: Session = Depends(get_db), user: User =
     responses = service.get_all_poll_responses(db=db, poll_id=poll_id, user_id=user.id)
     return responses
 
-
-# endpoint for getting report from respnonses
-@router.get("/user_polls/{poll_id}/report", deprecated=True)
-def get_poll_report(poll_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_active_user)):
-    """Эндпоинт для получения отчета по опросу
-
-    :param poll_id: Идентификатор опроса
-    :param db: Сессия базы данных
-    :param user: Текущий активный пользователь
-    :return: Отчет по опросу"""
-    report = service.get_poll_report(db=db, poll_id=poll_id)
-    return report
 

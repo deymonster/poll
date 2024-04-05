@@ -4,15 +4,13 @@ from fastapi import FastAPI, Response, Request, Depends
 from starlette.middleware.cors import CORSMiddleware
 
 from api import routers
-# from api.utils.middlerware import MongoDBMiddleware
 from db.session import SessionLocal, db_session
 from fastapi.staticfiles import StaticFiles
 from api.utils.security import create_initial_user
 from company.scheduler import scheduler
-from pkg.mongo_tools.db import session_collection
+from pkg.mongo_tools.db import session_collection, get_mongo_collection
 
 # from pkg.mongo_tools.db import mongo_manager
-
 app = FastAPI(
     title="TestDesk",
     description="TestDesk API - это сервис для создания и прохождения опросов.",
@@ -46,7 +44,7 @@ async def db_session_middleware(request: Request, call_next):
     response = Response("Internal server error", status_code=500)
     try:
         request.state.db = SessionLocal()
-        request.state.mongo_db = session_collection
+        request.state.mongo_db = get_mongo_collection()
         response = await call_next(request)
     finally:
         request.state.db.close()
@@ -57,8 +55,12 @@ async def db_session_middleware(request: Request, call_next):
 async def startup_event():
     create_initial_user(db=db_session())
     if not scheduler.running:
-
         scheduler.start()
+
+
+@app.on_event("shutdown")
+def shutdown_event():
+    scheduler.shutdown()
 
 
 app.include_router(routers.api_router, prefix="/api")

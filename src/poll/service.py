@@ -28,11 +28,9 @@ from typing import Optional
 from uuid import UUID, uuid4
 
 from .models import PollStatus, Response
-from .schemas import QuestionType, StatusPoll, UserSession
+from .schemas import QuestionType, StatusPoll
 from api.utils.logger import PollLogger
 from .session_data import SessionData
-
-
 
 # Logging
 logger = PollLogger(__name__)
@@ -109,16 +107,16 @@ def get_poll_by_uuid(db: Session, uuid: UUID):
         raise HTTPException(status_code=404, detail="Poll not found")
     if poll.poll_url and poll.poll_status == PollStatus.PUBLISHED:
         return poll
-    elif poll.poll_status in [PollStatus.CLOSED, PollStatus.ENDED]:
+    elif poll.poll_status in [PollStatus.ENDED]:
         return JSONResponse(
             status_code=status.HTTP_200_OK,
             content={
                 "status": "poll-closed",
-                "message": "Опрос закрыт или завершен.",
-                "poll_status": poll.poll_status
+                "message": "Опрос завершен.",
+                "poll_status": poll.poll_status,
+                "poll_name": poll.title
             }
         )
-
 
 
 # create list questions with nested choices - for creating poll
@@ -215,7 +213,8 @@ def get_all_user_poll(db: Session, user_id: int, status: Optional[PollStatus] = 
     :param status: PollStatus (optional)
     :return: List[Model Poll]
     """
-    selected_fields = [models.Poll.id, models.Poll.uuid, models.Poll.created_at, models.Poll.title, models.Poll.description,
+    selected_fields = [models.Poll.id, models.Poll.uuid, models.Poll.created_at, models.Poll.title,
+                       models.Poll.description,
                        models.Poll.poll_cover, models.Poll.poll_status]
     query = db.query(*selected_fields).filter(models.Poll.user_id == user_id)
 
@@ -246,24 +245,6 @@ def get_poll_detail(db: Session, poll_id: int, user_id: int):
         "question_count": db.query(models.Question).filter(models.Question.poll_id == poll_id).count()}
     # logger.info(poll_data)
     return poll_data
-
-
-def get_poll_questions_paginated(db: Session, poll_uuid: UUID, page: int = 1, page_size: int = 1):
-    # Get the poll with given uuid
-    poll = db.query(models.Poll).filter(models.Poll.uuid == poll_uuid).first()
-
-    if not poll:
-        raise HTTPException(status_code=404, detail="Poll not found")
-
-    questions = (
-        db.query(models.Question)
-        .options(joinedload(models.Question.choice))
-        .filter(models.Question.poll_id == poll.id)
-        .order_by(models.Question.id))
-    questions = questions.offset((page - 1) * page_size).limit(page_size).all()
-    total_questions = db.query(models.Question).filter(models.Question.poll_id == poll.id).count()
-    # logger.info(f"Total questions {total_questions}")
-    return questions, total_questions
 
 
 def update_poll(db: Session, poll_id: int, poll: schemas.UpdatePoll, user_id: int):
@@ -308,40 +289,23 @@ def update_poll(db: Session, poll_id: int, poll: schemas.UpdatePoll, user_id: in
     create_question(db=db, questions=poll.question, poll_id=db_poll.id)
     db.commit()
 
-    # Вариант обновления перебором всех вопросов и вариантов
-    # # обновляем вопросы и варианты ответов
-    # for question in poll.question:
-    #     db_question = next((q for q in db_poll.question if q.text == question.text), None)
-    #     if db_question:
-    #         print(f'Update Question - {db_question}')
-    #         for attr, value in question.model_dump(exclude={"choice"}).items():
-    #             setattr(db_question, attr, value)
-    #
-    #         for choice in question.choice:
-    #             db_choice = next((c for c in db_question.choice if c.text == choice.text), None)
-    #             if db_choice:
-    #                 print(f'Update Choice - {db_choice}')
-    #                 for attr, value in choice.model_dump().items():
-    #                     setattr(db_choice, attr, value)
-    #
-    #             else:
-    #                 print(f'Create new Choice - {choice}')
-    #                 create_new_choice(db=db, choice=choice, question_id=db_question.id)
-    #     else:
-    #         print(f'Create new question - {question}')
-    #         create_question(db, [question], db_poll.id)
-
     db.refresh(db_poll)
     return db_poll
 
 
 # update poll status
-def update_poll_status(db: Session, poll_id: int, payload_status: schemas.PollStatusUpdate, user_id: int):
+async def update_poll_status(db: Session,
+                             poll_id: int,
+                             db_mongo: AsyncIOMotorCollection,
+                             payload_status: schemas.PollStatusUpdate,
+                             user_id: int):
     """
     Обновление статуса опроса
 
+
     :param db:
     :param poll_id:
+    :param db_mongo:
     :param payload_status:
     :param user_id:
     :return: db_poll
@@ -353,6 +317,7 @@ def update_poll_status(db: Session, poll_id: int, payload_status: schemas.PollSt
     # otherwise update poll
     new_status = payload_status.poll_status
     if new_status == StatusPoll.PUBLISHED:
+        # При обновлении проверяем есть ли хотя бы один вопрос и один вариант ответа в опросе
         if not db_poll.question:
             raise HTTPException(status_code=400, detail="At least one question is required to publish the poll")
         for question in db_poll.question:
@@ -361,19 +326,23 @@ def update_poll_status(db: Session, poll_id: int, payload_status: schemas.PollSt
                                     detail="Each question must have at least one choice to publish the poll")
         db_poll.poll_status = PollStatus.PUBLISHED
         db_poll.poll_url = f"/poll/{db_poll.uuid}"
-    elif new_status == StatusPoll.DRAFT or StatusPoll.ENDED:
-        # Сброс URL, если опрос переводится в черновик, завершается вручную
+        db.commit()
+    elif new_status == StatusPoll.DRAFT:
+        # Сброс URL, если опрос переводится в черновик, завершается вручную удаляем все сессии
         db_poll.poll_url = None
-    elif new_status == StatusPoll.ARCHIVED:
-        # Архивация опроса
-        # Здесь может быть логика для архивации опроса
-        pass
+        db_poll.poll_status = PollStatus.DRAFT
+        await db_mongo.delete_many({"poll_uuid": str(db_poll.uuid)})
+        db.query(models.Response).filter(models.Response.poll_id == poll_id).delete()
+        db.commit()
+    elif new_status == PollStatus.ENDED:
+        # опрос завершен - удаляем все связанные сессии
+        db_poll.poll_status = PollStatus.ENDED
+        db_poll.poll_url = None
+        await db_mongo.delete_many({"poll_uuid": str(db_poll.uuid)})
+        db.commit()
     else:
         raise HTTPException(status_code=400, detail="Invalid poll status")
 
-    db_poll.poll_status = new_status
-    db.add(db_poll)
-    db.commit()
     db.refresh(db_poll)
     return db_poll
 
@@ -538,7 +507,7 @@ def validate_choice(db: Session, question_id: int, choice_id: int):
 # create new response for using in endpoint!!!
 async def create_new_response(db: Session,
                               poll_responses: schemas.CreatePollResponse,
-                              db_mongo_session: UserSession,
+                              db_mongo_session: SessionData,
                               db_mongo: AsyncIOMotorCollection = Depends(get_mongo_db),
                               uuid: UUID = None
                               ) -> List[models.Response]:
@@ -561,24 +530,15 @@ async def create_new_response(db: Session,
         raise HTTPException(status_code=404, detail="Poll not found for the user")
     #  Проверка на активность опроса - есть время начала и время окончания опроса
     if db_poll.is_ended():
-        raise HTTPException(status_code=400, detail="The poll is closed!")
-    if db_poll.max_participants is not None:
-        current_participants = await db_mongo.count_documents({"poll_uuid": str(uuid)})
-        if current_participants == db_poll.max_participants:
-            db_poll.poll_status = PollStatus.CLOSED
-            db.commit()
+        raise HTTPException(status_code=400, detail="The poll is ended!")
 
-    # Проверка сессии на то, был ли уже ответ или нет
-    if db_mongo_session.get("answered"):
-        raise HTTPException(status_code=400, detail="The User Session has an answer")
-
-        # Проверка времени завершения сессии
-    expires_at = db_mongo_session.get("expires_at")
+    # Проверка времени завершения сессии
+    expires_at = db_mongo_session["expires_at"]
     if expires_at and expires_at < datetime.utcnow():
         raise HTTPException(status_code=401, detail="Session expired")
 
-    token = db_mongo_session.get("token")
-
+    token = db_mongo_session["token"]
+    logger.info(f'Token: {token}')
     response_objects = []
     # iterate over the responses and create response objects
     # TODO with a UUID check if already answered using anonymous token
@@ -593,29 +553,16 @@ async def create_new_response(db: Session,
             raise HTTPException(status_code=500, detail="Invalid question type")
         db_response = question_handler(db, db_question, single_response)
         response_objects.append(db_response)
+
     # После сохранения всех ответов, проверяем, все ли пользователи ответили
     completed_sessions = await db_mongo.count_documents({"poll_uuid": str(uuid), "answered": True})
-    total_sessions = await db_mongo.count_documents({"poll_uuid": str(uuid)})
-    if db_poll.max_participants is not None and completed_sessions == db_poll.max_participants:
+    # total_sessions = await db_mongo.count_documents({"poll_uuid": str(uuid)})
+    if db_poll.max_participants is not None and completed_sessions == db_poll.max_participants - 1:
         db_poll.poll_status = PollStatus.ENDED
         db.commit()
     await db_mongo.update_one({"token": token}, {"$set": {"answered": True}})
 
     return response_objects
-
-
-# async def handle_poll_status(db: Session,
-#                              poll_status: schemas.PollStatus,
-#                              db_mongo: AsyncIOMotorCollection = Depends(get_mongo_db),
-#                              uuid: UUID = None
-#                              ) -> None:
-#     """Обрабатывает статус опроса и управляет сессиями MongoDB в соответствии с этим статусом.
-#
-#     :param db: сессия БД,
-#     :param poll_status: статус опроса,
-#     :param db_mongo: Клиент MongoDB
-#     """
-
 
 
 def handle_single_choice_response(db, db_question: models.Question, response_data: schemas.ResponsePayload):
@@ -723,8 +670,12 @@ def get_all_poll_responses(db: Session, poll_id: int, user_id: int):
     )
     if not db_poll:
         raise HTTPException(status_code=404, detail="Poll not found")
+
+    # Проверка статуса опроса
+    if db_poll.poll_status != PollStatus.ENDED:
+        raise HTTPException(status_code=400, detail="Poll results are not available until the poll has ended")
     results = []
-    logger.info(f'Poll question - {db_poll.question}')
+
     for question in db_poll.question:
         # Получаем все ответы на текущий вопрос
         responses = question.response
@@ -753,57 +704,6 @@ def get_all_poll_responses(db: Session, poll_id: int, user_id: int):
     return results
 
 
-def get_poll_report(db: Session, poll_id: int):
-    """
-    Получение отчета по опросу
-    :param db:
-    :param poll_id:
-    :param user_id:
-    :return: responses
-    """
-    report = []
-    questions = db.query(models.Question).filter(models.Question.poll_id == poll_id).all()
-    for question in questions:
-        total_responses = db.query(models.Response).filter(models.Response.question_id == question.id).count()
-        if question.type == QuestionType.SINGLE:
-            response_report = []
-            choices = db.query(models.Choice).filter(models.Choice.question_id == question.id).all()
-            for choice in choices:
-                choice_count = db.query(models.Response).filter(models.Response.choice_id == choice.id).count()
-                percentage = round((choice_count / total_responses) * 100, 2) if total_responses else 0
-                response_report.append({"choice_id": choice.id,
-                                        "count": choice_count,
-                                        "percentage": percentage})
-            report.append({"question_id": question.id, "responses": response_report})
-        elif question.type == QuestionType.PLURAL:
-            responses_report = []
-            choices = db.query(models.Choice).filter(models.Choice.question_id == question.id).all()
-            for choice in choices:
-                choice_count = db.query(models.Response).filter(models.Response.choice_id == choice.id,
-                                                                models.Response.question_id == question.id).count()
-                percentage = round((choice_count / total_responses) * 100, 2) if total_responses else 0
-                responses_report.append({"choice_id": choice.id,
-                                         "count": choice_count,
-                                         "percentage": percentage})
-            report.append({"question_id": question.id, "responses": responses_report})
-        elif question.type == QuestionType.FREE_TEXT:
-            text_answers = db.query(models.Response.answer_text).filter(
-                models.Response.question_id == question.id).all()
-            report.append({"question_id": question.id,
-                           "question_text": question.text,
-                           "text_answer": [answer[0] for answer in text_answers if answer[0]]
-                           })
-        elif question.type == QuestionType.FREE:
-            text_answers = db.query(models.Response.answer_text).filter(
-                models.Response.question_id == question.id).all()
-            report.append({"question_id": question.id,
-                           "question_text": question.text,
-                           "text_answers": [answer[0] for answer in text_answers if answer[0]]
-                           })
-
-    return report
-
-
 async def create_user_session(db: Session, uuid: UUID,
                               db_mongo: AsyncIOMotorCollection,
                               fingerprint: schemas.FingerPrint):
@@ -820,27 +720,24 @@ async def create_user_session(db: Session, uuid: UUID,
     poll = get_poll_by_uuid(db=db, uuid=uuid)
     if not poll:
         raise HTTPException(status_code=404, detail="Published Poll not found")
-    if poll.poll_status == PollStatus.CLOSED:
+    if poll.poll_status == PollStatus.ENDED:
         raise HTTPException(status_code=400, detail="This poll is closed and does not accept new participants.")
     # создаем токен используя uuid опроса и текущее время
     token_data = {"poll_uuid": str(poll.uuid)}
     token = create_anonymous_user_token(data=token_data)
-
 
     max_participants = poll.max_participants
     if max_participants is not None:
         current_participants = await db_mongo.count_documents({"poll_uuid": str(uuid)})
         if current_participants == max_participants:
             raise HTTPException(status_code=400, detail="Maximum participants reached for this poll.")
-        elif current_participants == max_participants - 1:
-            poll.poll_status = PollStatus.CLOSED
-            db.commit()
+        # elif current_participants == max_participants - 1:
+        #     poll.poll_status = PollStatus.CLOSED
+        #     db.commit()
 
     expires_at = None
     if poll.active_duration is not None:
         expires_at = datetime.utcnow() + timedelta(minutes=poll.active_duration)
-    expired_status = False
-    answered_status = False
 
     # создаем объект SessionData и сохраняем сессию опроса в MongoDB
     session_data = SessionData(

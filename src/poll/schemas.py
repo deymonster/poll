@@ -38,9 +38,9 @@ class QuestionType(str, Enum):
 class StatusPoll(str, Enum):
     DRAFT = 'DRAFT'
     PUBLISHED = 'PUBLISHED'
-    CLOSED = 'CLOSED'
+    # CLOSED = 'CLOSED'
     ENDED = 'ENDED'
-    ARCHIVED = 'ARCHIVED'
+    # ARCHIVED = 'ARCHIVED'
 
 
 class QuestionBase(CamelModelMixin):
@@ -170,7 +170,6 @@ class PollDetail(PollBase):
     question_count: Optional[int] = None
 
 
-
 class UpdatePoll(CamelModelMixin):
     title: Optional[str] = None
     description: Optional[str] = None
@@ -296,21 +295,14 @@ class PollReportResponse(CamelModelMixin):
     report: List[QuestionReport]
 
 
-class UserSession(CamelModelMixin):
-    token: str = Field(...)
-    fingerprint: Optional[str] = None
-    poll_uuid: str = Field(...)
-    expires_at: Optional[datetime] = None
-    expired: Optional[bool] = False
-    answered: Optional[bool] = False
-    session_status: Optional[str] = None
-
-    # class Config:
-    #     schema_extra = {
-    #         "example": {
-    #             "token": ""
-    #         }
-    #     }
+# class UserSession(CamelModelMixin):
+#     token: str = Field(...)
+#     fingerprint: Optional[str] = None
+#     poll_uuid: str = Field(...)
+#     expires_at: Optional[datetime] = None
+#     expired: Optional[bool] = False
+#     answered: Optional[bool] = False
+#     session_status: Optional[str] = None
 
 
 class UpdateUserSession(CamelModelMixin):
