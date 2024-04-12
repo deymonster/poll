@@ -105,5 +105,7 @@ class Response(Base):
     answer_text = Column(JSON, nullable=True)
     answer_choice = Column(JSON, nullable=True)
 
+    user_token = Column(String, nullable=False, index=True)
+
 
 

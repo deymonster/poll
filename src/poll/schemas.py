@@ -23,11 +23,6 @@ class ChoiceOut(CamelModelMixin):
     choice_cover: Optional[str] = None
 
 
-
-
-
-
-
 class QuestionType(str, Enum):
     SINGLE = "SINGLE ANSWER"
     PLURAL = "PLURAL ANSWER"
@@ -312,3 +307,36 @@ class UpdateUserSession(CamelModelMixin):
 
 class FingerPrint(CamelModelMixin):
     fingerprint: Optional[str] = None
+
+
+#  Classes for statistics of poll responses
+class Option(CamelModelMixin):
+    id: int
+    text: str
+
+
+class UserResponse(CamelModelMixin):
+    respondentId: int
+    questionId: int
+    questionText: str
+    answerType: QuestionType
+    selectedOptionIds: List[int]
+    answerText: Optional[str] = None
+
+
+class QuestionStats(CamelModelMixin):
+    questionId: int
+    questionText: str
+    items: dict
+
+
+class PollStatsResponse(CamelModelMixin):
+
+    responses: List[UserResponse]
+    stats: List[QuestionStats]
+
+
+# # Модель для списка результатов опроса
+# class PollResultsResponse(CamelModelMixin):
+#
+#     results: List[PollStatsResponse]

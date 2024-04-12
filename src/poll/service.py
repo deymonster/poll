@@ -650,10 +650,11 @@ def delete_question(db: Session, poll_id: int, question_id: int, user_id: int):
     return db_question
 
 
-# get all responses from poll
-def get_all_poll_responses(db: Session, poll_id: int, user_id: int):
+# get stats for all responses from poll
+def get_poll_stats_responses(db: Session, poll_id: int, user_id: int):
     """
-    Получение всех ответов на опрос
+    Получение статистики по ответам на опрос
+
     :param db:
     :param poll_id:
     :param user_id:
@@ -662,7 +663,7 @@ def get_all_poll_responses(db: Session, poll_id: int, user_id: int):
     db_poll = (
         db.query(models.Poll)
         .options(
-            joinedload(models.Poll.question)
+            joinedload(models.Poll.question).joinedload(models.Question.choice)
         )
         .filter(models.Poll.id == poll_id)
         .filter(models.Poll.user_id == user_id)
@@ -674,34 +675,97 @@ def get_all_poll_responses(db: Session, poll_id: int, user_id: int):
     # Проверка статуса опроса
     if db_poll.poll_status != PollStatus.ENDED:
         raise HTTPException(status_code=400, detail="Poll results are not available until the poll has ended")
-    results = []
 
+    responses = []
+    stats = []
+
+    # Сбор статистики по ответам на вопросы и сами ответы
     for question in db_poll.question:
         # Получаем все ответы на текущий вопрос
-        responses = question.response
+        question_responses = question.response
         # Собираем статистику по ответам
         answer_stats = {}
-        for response in responses:
-            if response.answer_choice:
-                # Если ответ представляет собой выбор
+        # Собираем индивидуальные ответы пользователей
+        for response in question_responses:
+            # Структура для хранения индивидуального ответа
+            user_response = {
+                "respondentId": response.id,
+                "questionId": question.id,
+                "questionText": question.text,
+                "answerType": question.type.value,
+                "selectedOptionIds": response.answer_choice or [],
+                "answerText": response.answer_text or "",
+            }
+            responses.append(user_response)
+
+            # if response.answer_choice:
+            #     # Если ответ представляет собой выбор
+            #     for choice_id in response.answer_choice:
+            #         # Получаем текст выбора из уже загруженных данных
+            #         choice_text = next((choice.text for choice in question.choice if choice.id == choice_id),
+            #                            "Неизвестный выбор")
+            #         # user_response["selectedOptionIds"].append(choice_id)
+            #         # Статистика ответов пользователя
+            #         if choice_text not in answer_stats:
+            #             answer_stats[choice_text] = 1
+            #         else:
+            #             answer_stats[choice_text] += 1
+            # elif response.answer_text:
+            #     # Если ответ представляет собой текст
+            #     # user_response["answerText"] = response.answer_text
+            #     # Статистика ответов пользователя
+            #     if response.answer_text not in answer_stats:
+            #         answer_stats[response.answer_text] = 1
+            #     else:
+            #         answer_stats[response.answer_text] += 1
+
+            if question.type == "PLURAL ANSWER" or question.type == "SINGLE ANSWER":
                 for choice_id in response.answer_choice:
-                    choice_text = db.query(models.Choice).get(choice_id).text
-                    if choice_text not in answer_stats:
-                        answer_stats[choice_text] = 1
-                    else:
-                        answer_stats[choice_text] += 1
-            elif response.answer_text:
-                # Если ответ представляет собой текст
-                if response.answer_text not in answer_stats:
-                    answer_stats[response.answer_text] = 1
-                else:
-                    answer_stats[response.answer_text] += 1
-        result = {
-            "question_title": question.text,
-            "items": answer_stats
-        }
-        results.append(result)
-    return results
+                    choice_text = next((choice.text for choice in question.choice if choice.id == choice_id),
+                                       "Неизвестный выбор")
+                    answer_stats[choice_text] = answer_stats.get(choice_text, 0) + 1
+            elif question.type == "FREE ANSWER" and response.answer_text:
+                answer_stats[response.answer_text] = answer_stats.get(response.answer_text, 0) + 1
+
+        stats.append(
+            {
+                "questionId": question.id,
+                "questionText": question.text,
+                "items": answer_stats
+            }
+        )
+    return {
+        "responses": responses,
+        "stats": stats
+    }
+
+#
+# async def get_all_poll_responses(db: Session, poll_id: int, user_id: int):
+#     """
+#     Получение всех ответов на опрос по его id
+#
+#     :param db: сессия БД,
+#     :param poll_id: id опроса,
+#     :param user_id: id пользователя,
+#     :return: ответы на опрос
+#     """
+#
+#     db_poll = (
+#         db.query(models.Poll)
+#         .options(
+#             joinedload(models.Poll.question)
+#         )
+#         .filter(models.Poll.id == poll_id)
+#         .filter(models.Poll.user_id == user_id)
+#         .first()
+#     )
+#     if not db_poll:
+#         raise HTTPException(status_code=404, detail="Poll not found")
+#     # Проверка статуса опроса
+#     if db_poll.poll_status != PollStatus.ENDED:
+#         raise HTTPException(status_code=400, detail="Poll results are not available until the poll has ended")
+#
+#
 
 
 async def create_user_session(db: Session, uuid: UUID,

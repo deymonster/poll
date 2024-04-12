@@ -317,16 +317,21 @@ async def create_poll_response(uuid: UUID, poll_responses: schemas.CreatePollRes
 
 
 # endpoint for getting all responses for poll
-@router.get("/user_polls/{poll_id}/responses", response_model=List[schemas.QuestionStatItem])
-def get_poll_responses(poll_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_active_user)):
-    """Эндпоинт для получения всех ответов на опрос
-
+@router.get("/user_polls/{poll_id}/stats", response_model=schemas.PollStatsResponse)
+def get_poll_stats_responses(poll_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_active_user)):
+    """Эндпоинт для получения статистики всех ответов на опрос
 
     :param poll_id: Идентификатор опроса
     :param db: Сессия базы данных
     :param user: Текущий активный пользователь
     :return: Список ответов на опрос"""
-    responses = service.get_all_poll_responses(db=db, poll_id=poll_id, user_id=user.id)
-    return responses
+
+    results = service.get_poll_stats_responses(db=db, poll_id=poll_id, user_id=user.id)
+    # results_data = jsonable_encoder(results)
+    # return schemas.PollResultsResponse(results=results_data)
+    return service.get_poll_stats_responses(db=db, poll_id=poll_id, user_id=user.id)
+
+
+
 
 
