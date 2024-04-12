@@ -316,12 +316,12 @@ class Option(CamelModelMixin):
 
 
 class UserResponse(CamelModelMixin):
-    respondentId: int
     questionId: int
     questionText: str
     answerType: QuestionType
     selectedOptionIds: List[int]
     answerText: Optional[str] = None
+    user_token: str
 
 
 class QuestionStats(CamelModelMixin):

@@ -465,7 +465,8 @@ def update_question(db: Session, question_id: int, question: schemas.UpdateQuest
 def create_response(db: Session,
                     db_question: models.Question,
                     answer_text=None,
-                    answer_choice=None):
+                    answer_choice=None,
+                    user_token=None):
     """Создание ответа на вопрос - общая функция для всех обработчиков
 
 
@@ -473,13 +474,15 @@ def create_response(db: Session,
     :param db_question: модель вопроса,
     :param answer_text: текст ответа для вопроса с текстовым ответом,
     :param answer_choice: id варианта ответа может быть списков из нескольких элементов
+    :param user_token: токен пользователя,
     """
 
     db_response = models.Response(
         poll_id=db_question.poll_id,
         question_id=db_question.id,
         answer_text=answer_text,
-        answer_choice=answer_choice
+        answer_choice=answer_choice,
+        user_token=user_token
     )
     db.add(db_response)
     db.commit()
@@ -551,7 +554,7 @@ async def create_new_response(db: Session,
         question_handler = question_handlers.get(db_question.type)
         if question_handler is None:
             raise HTTPException(status_code=500, detail="Invalid question type")
-        db_response = question_handler(db, db_question, single_response)
+        db_response = question_handler(db, db_question, single_response, token)
         response_objects.append(db_response)
 
     # После сохранения всех ответов, проверяем, все ли пользователи ответили
@@ -565,7 +568,7 @@ async def create_new_response(db: Session,
     return response_objects
 
 
-def handle_single_choice_response(db, db_question: models.Question, response_data: schemas.ResponsePayload):
+def handle_single_choice_response(db, db_question: models.Question, response_data: schemas.ResponsePayload, token: str):
     """
     Обработчик ответа на вопрос с одним вариантом ответа
 
@@ -573,17 +576,19 @@ def handle_single_choice_response(db, db_question: models.Question, response_dat
     :param db: сессия БД,
     :param db_question: модель вопроса,
     :param response_data: общая схема для создания ответа на вопрос
+    :param token: токен пользователя,
     :return create_response
+
     """
 
     # check that response data has only choice_id for single choice question
     if not (response_data.choice_id or response_data.choice_ids) or response_data.choice_text:
         raise HTTPException(status_code=400, detail="Invalid answer data for single choice question")
     validate_choice(db, db_question.id, response_data.choice_id)
-    return create_response(db, db_question, answer_choice=[response_data.choice_id])
+    return create_response(db, db_question, answer_choice=[response_data.choice_id], user_token=token)
 
 
-def handle_multiple_choice_response(db, db_question: models.Question, response_data: schemas.ResponsePayload):
+def handle_multiple_choice_response(db, db_question: models.Question, response_data: schemas.ResponsePayload, token: str):
     """
     Обработчик ответа на вопрос с несколькими вариантами ответа
 
@@ -599,10 +604,10 @@ def handle_multiple_choice_response(db, db_question: models.Question, response_d
     for choice_id in response_data.choice_ids:
         validate_choice(db, db_question.id, choice_id)
 
-    return create_response(db, db_question, answer_choice=response_data.choice_ids)
+    return create_response(db, db_question, answer_choice=response_data.choice_ids, user_token=token)
 
 
-def handle_text_response(db, db_question: models.Question, response_data: schemas.ResponsePayload):
+def handle_text_response(db, db_question: models.Question, response_data: schemas.ResponsePayload, token: str):
     """
     Обработчик ответа на вопрос с одним или несколькими текстовыми ответоми
 
@@ -610,10 +615,11 @@ def handle_text_response(db, db_question: models.Question, response_data: schema
     :param db: сессия БД,
     :param db_question: модель вопроса,
     :param response_data: схема для создания ответа на вопрос с текстовым ответом"""
+
     # check that response data has only answer_text for text question
     if not response_data.choice_text or response_data.choice_id or response_data.choice_ids:
         raise HTTPException(status_code=400, detail="Invalid answer data for text question")
-    return create_response(db, db_question, answer_text=response_data.choice_text)
+    return create_response(db, db_question, answer_text=response_data.choice_text, user_token=token)
 
 
 # Map question type to handler function
@@ -689,12 +695,12 @@ def get_poll_stats_responses(db: Session, poll_id: int, user_id: int):
         for response in question_responses:
             # Структура для хранения индивидуального ответа
             user_response = {
-                "respondentId": response.id,
                 "questionId": question.id,
                 "questionText": question.text,
                 "answerType": question.type.value,
                 "selectedOptionIds": response.answer_choice or [],
                 "answerText": response.answer_text or "",
+                "userToken": response.user_token
             }
             responses.append(user_response)
 
