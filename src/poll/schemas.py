@@ -13,6 +13,7 @@ class ChoiceBase(CamelModelMixin):
 
 
 class Choice(CamelModelMixin):
+    id: Optional[int] = None
     text: str
     choice_cover: Optional[str] = None
 
@@ -49,7 +50,7 @@ class QuestionBase(CamelModelMixin):
 
 
 class Question(QuestionBase):
-
+    id: Optional[int] = None
     choice: Optional[List[Choice]] = []
 
     class Config:
