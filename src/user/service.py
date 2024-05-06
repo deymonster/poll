@@ -15,9 +15,9 @@ from company.models import Company
 from company.service import can_invite_new_users, add_invitation
 from core.security import verify_password, get_password_hash
 from user.models import User, UserRole
-from user.schemas import UserCreate, UserUpdate, UserCreateByEmail
+from user.schemas import UserCreate, UserUpdate, UserCreateByEmail,UpdateUserProfile
 from api.utils.logger import PollLogger
-from utils import generate_registration_token, send_new_account_email
+from utils import generate_registration_token, send_new_account_email, send_update_profile_email
 
 # Logging
 logger = PollLogger(__name__)
@@ -148,6 +148,8 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
     ) -> ModelType:
         """
         Метод получения пользователя или 404
+
+
         :param db_session: сессия БД
         :param user_id: id пользователя
         :param current_user: текущий пользователь
@@ -171,7 +173,8 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
             current_user: User,
             *,
             db_obj: Optional[ModelType] = None,
-            update_data: UserUpdate,
+            update_data: UpdateUserProfile,
+            background_tasks: BackgroundTasks
     ) -> ModelType:
         """
         Метод обновления пользователя
@@ -180,21 +183,49 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         :param current_user: текущий пользователь
         :param db_obj: объект пользователя которого мы обновляем
         :param update_data: объект обновления пользователя
+        :param background_tasks фоновая задача для отправки email
         :return: Возвращает обновленного пользователя
 
         """
+
+
+        # User Update His Own Profile
         if not db_obj:
             db_obj = current_user
         # check if user with this email exists and if new email is not the same as in db
         user = self.get_by_email(db_session, email=update_data.email)
         if user and user.id != db_obj.id:
-            # logger.info(f"User with this email already exists")
             raise HTTPException(
                 status_code=409, detail="The user with this email already exists"
             )
-        update_data.is_active = True
-        print(f"update_data in service - {update_data}")
-        print(f"db_obj - {db_obj}")
+
+        email_changed = update_data.email is not None and update_data.email != db_obj.email
+
+        email_to = update_data.email if email_changed else db_obj.email
+        full_name = update_data.full_name if update_data.full_name is not None else db_obj.full_name
+
+        password_changed = bool(update_data.new_password)
+        both_changed = email_changed and password_changed
+        roles_changed = update_data.roles is not None and update_data.roles!= db_obj.roles
+        role = update_data.roles if roles_changed else db_obj.roles
+
+        # if new password set - check old password hash if ok calculate hash of new password
+        if password_changed:
+            if not verify_password(update_data.old_password, current_user.hashed_password):
+                raise HTTPException(status_code=400, detail="incorrect password")
+            update_data.hashed_password = get_password_hash(update_data.new_password)
+
+        background_tasks.add_task(
+            send_update_profile_email,
+            email_to=email_to,
+            email=email_to,
+            full_name=full_name,
+            email_changed=email_changed,
+            password_changed=password_changed,
+            both_changed=both_changed,
+            roles_changed=roles_changed,
+            role=role
+        )
         match True:
             case _ if UserRole.SUPERADMIN in current_user.roles:
                 return super().update(db_session, db_obj=db_obj, obj_in=update_data)
@@ -211,11 +242,52 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
                         status_code=403, detail="The user can't update another user"
                     )
                 update_data.roles = [UserRole.USER]
-                update_data.email = current_user.email
+                # update_data.email = current_user.email
                 return super().update(db_session, db_obj=db_obj, obj_in=update_data)
 
             case _:
                 raise HTTPException(status_code=403, detail="Unknown user role")
+
+    # update user his own profile
+    def profile_update(
+            self,
+            db_session: Session,
+            user_id: int,
+            current_user: User,
+            update_data: UpdateUserProfile,
+            background_tasks: BackgroundTasks,
+            ):
+        """
+        Метод обновления профиля пользователя
+
+        :param db_session: сессия БД
+        :param user_id: id пользователя
+        :param current_user: текущий пользователь
+        :param update_data: объект обновления профиля пользователя
+        :param background_tasks: таск для отправки письма пользователю об обновлении профиля
+        :return: Возвращает обновленного пользователя
+        """
+
+        email_changed = bool(update_data.email)
+        password_changed = bool(update_data.password)
+        both_changed = email_changed and password_changed
+        if update_data.password:
+            if not verify_password(update_data.password, current_user.hashed_password):
+                raise HTTPException(status_code=400, detail="Incorrect password")
+            current_user.hashed_password = get_password_hash(update_data.new_password)
+        if update_data.email:
+            user = self.get_by_email(db_session, email=update_data.email)
+            if user and user.id != current_user.id:
+                raise HTTPException(
+                    status_code=409, detail="The user with this email already exists"
+                )
+            current_user.email = update_data.email
+        if update_data.avatar:
+            current_user.avatar = update_data.avatar
+        db.commit()
+        db.refresh(current_user)
+        return current_user
+
 
     # delete user by id depends on role
     def crud_remove(self, db: Session, user_id: int, current_user: User):
@@ -257,6 +329,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         :return: Возвращает сообщение об успешной отправке письма
 
         """
+
         if self.get_by_email(db_session=db_session, email=obj_in.email):
             raise HTTPException(
                 status_code=409,
@@ -332,22 +405,32 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         :return Path: полный путь до изображения
         """
 
+        # max size file 5 Mb
+        max_file_size = 5 * 1024 * 1024
+        file_size = file.file.seek(0, 2)
+        if file_size > max_file_size:
+            raise HTTPException(status_code=413, detail="File is too large")
         # check if file is an image
         mime_type, _ = guess_type(file.filename)
         if not mime_type or not mime_type.startswith("image"):
-            raise HTTPException(status_code=400, detail="File must be an image")
+            raise HTTPException(status_code=415, detail="Unsupported media type")
+
         user = self.get_or_404(db_session=db_session, user_id=user_id, current_user=current_user)
         if not user:
             raise HTTPException(status_code=404, detail="User not found")
-        file_name = f"{user_id}_{file.filename}"
-        path = f"{file_name}"
-        try:
-            with open(f"{settings.MEDIA_ROOT}/{file_name}", "wb") as buffer:
-                shutil.copyfileobj(file.file, buffer)
-        except IOError:
-            raise HTTPException(status_code=500, detail="Could not upload file")
+        user_dir = Path(settings.MEDIA_ROOT) / str(user_id)
+        user_dir.mkdir(parents=True, exist_ok=True)
 
-        return Path(path)
+        file_name = f"{user_id}_{file.filename}"
+        path = user_dir / file_name
+        file.file.seek(0)
+        try:
+            with open(path, "wb") as buffer:
+                shutil.copyfileobj(file.file, buffer)
+        except IOError as e:
+            raise HTTPException(status_code=500, detail=f"Could not upload file: {e}")
+
+        return file_name
 
 
 

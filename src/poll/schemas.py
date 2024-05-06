@@ -327,6 +327,7 @@ class UserResponse(CamelModelMixin):
 
 class QuestionStats(CamelModelMixin):
     questionId: int
+    answerType: QuestionType
     questionText: str
     items: dict
 

@@ -1,0 +1,20 @@
+<mjml>
+  <mj-body background-color="#fff">
+    <mj-section>
+      <mj-column>
+        <mj-divider border-color="#555555"></mj-divider>
+        <mj-text font-size="20px" color="#555555" font-family="helvetica">Изменение данных профиля</mj-text>
+        <mj-text font-size="16px" color="#555555">Уважаемый(ая), {{ full_name }}!</mj-text>
+        <mj-text font-size="16px" color="#555555">Вы успешно изменили данные вашего профиля на {{ project_name }}.</mj-text>
+        <!-- Conditionally render the following lines based on what the user has changed -->
+        <mj-text font-size="16px" color="#555555">{% if password_changed %}Ваш пароль был успешно обновлен.{% endif %}</mj-text>
+        <mj-text font-size="16px" color="#555555">{% if role_changed %}Ваш роль была изменена администратором на - {{ role }}{% endif %}</mj-text>
+        <mj-text font-size="16px" color="#555555">{% if email_changed %}Ваш адрес электронной почты был изменен на: {{ email }}.{% endif %}</mj-text>
+        <mj-text font-size="16px" color="#555555">{% if both_changed %}Ваш пароль и адрес электронной почты были успешно обновлены.{% endif %}</mj-text>
+        <mj-text font-size="16px" color="#555555">Если вы не совершали эти действия, пожалуйста, свяжитесь с нашей службой поддержки немедленно.</mj-text>
+        <mj-text font-size="16px" color="#555555">С уважением, команда {{ project_name }}</mj-text>
+        <mj-divider border-color="#555555" border-width="2px" />
+      </mj-column>
+    </mj-section>
+  </mj-body>
+</mjml>

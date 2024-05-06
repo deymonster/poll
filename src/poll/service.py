@@ -736,6 +736,7 @@ def get_poll_stats_responses(db: Session, poll_id: int, user_id: int):
         stats.append(
             {
                 "questionId": question.id,
+                "answerType": question.type.value,
                 "questionText": question.text,
                 "items": answer_stats
             }

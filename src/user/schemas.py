@@ -56,8 +56,23 @@ class UserUpdate(UserBase):
     """
     User update model
     """
-    password: Optional[str] = None
+    old_password: Optional[str] = None
+    new_password: Optional[str] = None
     company_id: Optional[int] = None
+
+class UpdateUserProfile(CamelModelMixin):
+    """
+    Update user profile model schema
+    """
+
+    full_name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    old_password: Optional[str] = None
+    new_password: Optional[str] = None
+    hashed_password: Optional[str] = None
+    roles: List[str] = []
+    company_id: Optional[int] = None
+    avatar: Optional[str] = None
 
 
 class User(UserBaseInDB):

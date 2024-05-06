@@ -20,7 +20,7 @@ from api.utils.db import get_db
 from api.utils.security import get_current_active_user, get_current_user_with_roles, get_current_user
 
 from user.models import User as DBUser, UserRole
-from user.schemas import User, UserCreate, UserUpdate, TokenData, RegistrationCompletion, UserCreateByEmail
+from user.schemas import User, UserCreate, UserUpdate, TokenData, RegistrationCompletion, UserCreateByEmail, UpdateUserProfile
 from user.service import crud_user
 from fastapi import BackgroundTasks
 from api.utils.logger import PollLogger
@@ -216,6 +216,8 @@ def create_user(
 ):
     """
     Простой эндпойнт для создания пользователя.
+
+
     :param db: Сессия базы данных
     :param user_in: Данные для создания пользователя
     :param current_user: Текущий пользователь с ролью SUPERADMIN и ADMIN
@@ -226,6 +228,7 @@ def create_user(
     3. Если пользователь не существует, то создаем его
     4. Если включена отправка email, то отправляем письмо с данными для входа в систему
     """
+    logger.error(f'Current USER: {current_user}')
     user = crud_user.get_by_email(db, email=user_in.email)
     if user:
         raise HTTPException(
@@ -239,21 +242,20 @@ def create_user(
 
 
 @router.put("/{user_id}", response_model=User)
-@router.put("/me", response_model=User)
-def update_user_me(
-        user_id: Optional[int] = None,
+def update_user(
+        user_id: int,
         *,
         request: Request,
         db: Session = Depends(get_db),
-        user_in: UserUpdate,
+        user_in: UpdateUserProfile,
         background_tasks: BackgroundTasks,
         current_user: DBUser = Depends(get_current_active_user),
 ):
     """
-    Эндпойнты для обновления конкретного пользователя по id  и второй для обновления текущего пользователя.
+    Эндпойнт для обновления конкретного пользователя по id.
 
-    :param user_id: ID пользователя - необязательный параметр для обновления пользователя по id
-     :param request:
+    :param user_id: ID пользователя -  для обновления пользователя по id
+    :param request:
     :param db: Сессия базы данных
     :param user_in: Данные для обновления пользователя
     :param background_tasks:
@@ -269,29 +271,57 @@ def update_user_me(
     "password": "0000"
     }
     """
-    if not user_id:
-        user_id = current_user.id
+
+
+    # restrict access for superadmin and admin
+    get_current_user_with_roles(current_user, required_roles=[UserRole.SUPERADMIN, UserRole.ADMIN])
+
     user_to_update = crud_user.get_or_404(db, user_id=user_id, current_user=current_user)
-    if user_in.email != user_to_update.email:
-        # restrict access for superadmin and admin
-        get_current_user_with_roles(current_user, required_roles=[UserRole.SUPERADMIN, UserRole.ADMIN])
-
-        try:
-            crud_user.register_user(db_session=db,
-                                    request=request,
-                                    current_user=current_user,
-                                    obj_in=user_to_update,
-                                    background_tasks=background_tasks)
-
-            return JSONResponse(status_code=201, content={"message": "Email was sent to user"})
-        except HTTPException as e:
-            return JSONResponse(status_code=e.status_code, content={"message": e.detail})
 
     try:
-        crud_user.update(db, current_user=current_user, db_obj=user_to_update, update_data=user_in)
+        crud_user.update(
+            db,
+            current_user=current_user,
+            db_obj=user_to_update,
+            update_data=user_in,
+            background_tasks=background_tasks
+        )
         return JSONResponse(status_code=201, content={"message": "User updated successfully"})
     except HTTPException as e:
         return JSONResponse(status_code=e.status_code, content={"message": e.detail})
+
+@router.put("/profile", response_model=User)
+def update_user_profile(
+        *,
+        request: Request,
+        db: Session = Depends(get_db),
+        user_in: UpdateUserProfile,
+        background_tasks: BackgroundTasks,
+        current_user: DBUser = Depends(get_current_active_user)):
+
+    """
+    Эндпойнт для обновления данных профиля пользователя
+
+
+    :param request:
+    :param db:
+    :param user_in:
+    :param background_tasks:
+    :param current_user:
+    :return: Обновленный пользователь
+    """
+
+    try:
+        crud_user.profile_update(
+            db_session=db,
+            user_id=current_user.id,
+            update_data=user_in,
+            background_tasks=background_tasks,
+        )
+        return JSONResponse(status_code=201, content={"message": "User Profile updated successfully"})
+    except HTTPException as e:
+        return JSONResponse(status_code=e.status_code, content={"message": e.detail})
+
 
 
 @router.get("/me", response_model=User)
@@ -378,15 +408,20 @@ def upload_avatar(user_id: int,
                   current_user: User = Depends(get_current_active_user)
                   ):
     try:
-        path_to_avatar = crud_user.upload_user_avatar(db_session=db,
+        file_name = crud_user.upload_user_avatar(db_session=db,
                                                       file=file,
                                                       user_id=user_id,
                                                       current_user=current_user)
         return {
             "message": "Avatar uploaded successfully",
-            "path_to_avatar": f"{SERVER_HOST}/media/{str(path_to_avatar)}"}
+            "path_to_avatar": f"{SERVER_HOST}/media/{user_id}/{str(file_name)}"}
     except HTTPException as e:
-        return {"message": str(e.detail)}
+        return JSONResponse(
+            status_code=e.status_code,
+            content={
+                "message": e.detail,
+            }
+        )
 
 
 
