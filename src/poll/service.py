@@ -14,6 +14,8 @@ from sqlalchemy.orm import Session, joinedload, class_mapper, RelationshipProper
 from motor.motor_asyncio import AsyncIOMotorCollection
 from sqlalchemy.orm.session import make_transient
 
+from sqlalchemy import func, extract
+
 from api.utils.db import get_mongo_db
 from core.jwt import create_anonymous_user_token
 from core.local_config import settings
@@ -222,6 +224,33 @@ def get_all_user_poll(db: Session, user_id: int, status: Optional[PollStatus] = 
         query = query.filter(models.Poll.poll_status == status)
     query = query.order_by(desc(models.Poll.created_at))
     return query.all()
+
+
+def get_monthly_poll(db: Session, year: int):
+    """Получение статистики по месяцам опросов
+
+    :param db: Сессия базы данных
+    :param year: Год
+    :return: количество компаний по месяцам
+    """
+
+    monthly_counts = db.query(
+        extract('month', models.Poll.created_at).label('month'),
+        func.count(models.Poll.id).label('count')
+    ).filter(
+        extract('year', models.Poll.created_at) == year
+    ).group_by(
+        'month'
+    ).order_by(
+        'month'
+    ).all()
+
+    monthly_registrations = [0] * 12
+    for month, count in monthly_counts:
+        month_index = int(month) - 1
+        monthly_registrations[month_index] = count
+
+    return monthly_registrations
 
 
 # get single poll with list of responses

@@ -1,11 +1,12 @@
 from db.base_class import Base
 from enum import Enum
 from sqlalchemy.dialects.postgresql import ENUM, UUID
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, DateTime, JSON, event
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, DateTime, JSON, event, DateTime
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone, timedelta
 import uuid
 from user.models import User
+from sqlalchemy import func
 
 
 class TypeQuestion(str, Enum):
@@ -28,7 +29,7 @@ class Poll(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     uuid = Column(UUID(as_uuid=True), unique=True, default=uuid.uuid4)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=func.now(), comment="Дата создания")
     title = Column(String, index=True)
     description = Column(String, index=True)
     poll_cover = Column(String, nullable=True)

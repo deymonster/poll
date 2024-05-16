@@ -10,6 +10,8 @@ from fastapi import HTTPException, Request, BackgroundTasks, UploadFile
 
 from sqlalchemy.orm import Session
 
+from sqlalchemy import func, extract
+
 from base.service import CRUDBase, ModelType
 from company.models import Company
 from company.service import can_invite_new_users, add_invitation
@@ -142,6 +144,32 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         if UserRole.ADMIN in current_user.roles:
             query = query.filter(self.model.company_id == current_user.company_id)
         return query.offset(skip).limit(limit).all()
+
+    def get_monthly_users(self, db_session: Session, year: int) -> List[int]:
+        """ Метод получения списка пользователей по месяцам
+
+        :param db_session: сессия БД
+        :param year: год
+        :return: Возвращает список пользователей по месяцам
+        """
+
+        monthly_counts = db_session.query(
+            extract('month', self.model.created_at).label('month'),
+            func.count(self.model.id).label('count')
+        ).filter(
+            extract('year', self.model.created_at) == year
+        ).group_by(
+            'month'
+        ).order_by(
+            'month'
+        ).all()
+
+        monthly_registrations = [0] * 12
+        for month, count in monthly_counts:
+            monthly_registrations[int(month) - 1] = count
+
+        return monthly_registrations
+
 
     def get_or_404(
             self, db_session: Session, user_id: int, current_user: User

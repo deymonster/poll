@@ -1,5 +1,6 @@
 from base import schemas
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func, extract
 from company import schemas
 from company import models as company_models
 from fastapi import HTTPException
@@ -21,6 +22,31 @@ def get_all_companies(db: Session):
     """
     return db.query(models.Company).all()
 
+def get_monthly_company(db: Session, year: int):
+    """Получение статистики по месяцам компаний
+
+    :param db: Сессия базы данных
+    :param year: Год
+    :return: количество компаний по месяцам
+    """
+
+    monthly_counts = db.query(
+        extract('month', models.Company.created_at).label('month'),
+        func.count(models.Company.id).label('count')
+    ).filter(
+        extract('year', models.Company.created_at) == year
+    ).group_by(
+        'month'
+    ).order_by(
+        'month'
+    ).all()
+
+    monthly_registrations = [0] * 12
+    for month, count in monthly_counts:
+        month_index = int(month) - 1
+        monthly_registrations[month_index] = count
+
+    return monthly_registrations
 
 # create new company
 def create_new_company(db: Session, data: schemas.CompanyCreate):

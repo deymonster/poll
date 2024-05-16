@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, Integer, String, ARRAY, ForeignKey
+from sqlalchemy import Boolean, Column, Integer, String, ARRAY, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
 import uuid
 from db.base_class import Base
@@ -6,6 +6,7 @@ from sqlalchemy.dialects.postgresql import UUID
 from enum import Enum
 from company.models import Company
 from core.config import DEFAULT_AVATAR_PATH
+from sqlalchemy import func
 
 
 class UserRole(str, Enum):
@@ -31,6 +32,8 @@ class User(Base):
     company_id = Column(Integer, ForeignKey("company.id"), nullable=True)
     company = relationship(Company, back_populates="users")
     avatar = Column(String, nullable=True, default=DEFAULT_AVATAR_PATH)
+
+    created_at = Column(DateTime, default=func.now(), comment="Дата создания")
 
     @property
     def roles(self):
