@@ -59,3 +59,9 @@ class CompanyStatusUpdate(CamelModelMixin):
     company_status: bool = False
 
 
+
+class Statistics(CamelModelMixin):
+    company: List[int]
+    poll: List[int]
+    user: List[int]
+
