@@ -1,7 +1,7 @@
 from starlette.background import BackgroundTasks
 
 from api.utils.logger import PollLogger
-from company.schemas import CompanyCreate, CompanyOut, Statistics
+from company.schemas import CompanyCreate, CompanyOut, AllStatistics
 
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Request, Query, UploadFile, File
@@ -26,7 +26,7 @@ router = APIRouter()
 
 
 # endpoint for summary statistics
-@router.get("/statistics",  response_model=Statistics)
+@router.get("/statistics",  response_model=AllStatistics)
 def get_statistics(db: Session = Depends(get_db),
                   current_user: User = Depends(get_current_active_user)):
     """"Get statistics

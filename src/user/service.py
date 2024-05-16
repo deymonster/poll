@@ -11,6 +11,7 @@ from fastapi import HTTPException, Request, BackgroundTasks, UploadFile
 from sqlalchemy.orm import Session
 
 from sqlalchemy import func, extract
+from collections import Counter
 
 from base.service import CRUDBase, ModelType
 from company.models import Company
@@ -153,22 +154,26 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         :return: Возвращает список пользователей по месяцам
         """
 
-        monthly_counts = db_session.query(
-            extract('month', self.model.created_at).label('month'),
-            func.count(self.model.id).label('count')
-        ).filter(
-            extract('year', self.model.created_at) == year
-        ).group_by(
-            'month'
-        ).order_by(
-            'month'
-        ).all()
 
-        monthly_registrations = [0] * 12
-        for month, count in monthly_counts:
-            monthly_registrations[int(month) - 1] = count
+        users = db_session.query(
+        extract('month', self.model.created_at).label('month'),
+            ).filter(
+                extract('year', self.model.created_at) == year
+            ).all()
 
-        return monthly_registrations
+        # Подсчитываем количество опросов по месяцам
+        monthly_counts = Counter(month for month, in users)
+
+        # Инициализируем список нулями для каждого месяца
+        monthly_registrations = [monthly_counts[i] for i in range(1, 13)]
+
+        # Общее количество компаний за год - это просто длина списка companies
+        total_count = len(users)
+
+        return {
+            "monthly_registrations": monthly_registrations,
+            "total_count": total_count
+        }
 
 
     def get_or_404(

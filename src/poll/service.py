@@ -15,6 +15,7 @@ from motor.motor_asyncio import AsyncIOMotorCollection
 from sqlalchemy.orm.session import make_transient
 
 from sqlalchemy import func, extract
+from collections import Counter
 
 from api.utils.db import get_mongo_db
 from core.jwt import create_anonymous_user_token
@@ -234,24 +235,25 @@ def get_monthly_poll(db: Session, year: int):
     :return: количество компаний по месяцам
     """
 
-    monthly_counts = db.query(
+    polls = db.query(
         extract('month', models.Poll.created_at).label('month'),
-        func.count(models.Poll.id).label('count')
     ).filter(
         extract('year', models.Poll.created_at) == year
-    ).group_by(
-        'month'
-    ).order_by(
-        'month'
     ).all()
 
-    monthly_registrations = [0] * 12
-    for month, count in monthly_counts:
-        month_index = int(month) - 1
-        monthly_registrations[month_index] = count
+    # Подсчитываем количество опросов по месяцам
+    monthly_counts = Counter(month for month, in polls)
 
-    return monthly_registrations
+    # Инициализируем список нулями для каждого месяца
+    monthly_registrations = [monthly_counts[i] for i in range(1, 13)]
 
+    # Общее количество компаний за год - это просто длина списка companies
+    total_count = len(polls)
+
+    return {
+        "monthly_registrations": monthly_registrations,
+        "total_count": total_count
+    }
 
 # get single poll with list of responses
 def get_single_poll_with_response(db: Session, poll_id: int, user_id: int):
