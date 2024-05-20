@@ -10,6 +10,10 @@ from api.utils.security import create_initial_user
 from company.scheduler import scheduler
 from pkg.mongo_tools.db import session_collection, get_mongo_collection
 
+from user.models import User
+from poll.models import Poll
+from company.models import Company
+
 # from pkg.mongo_tools.db import mongo_manager
 app = FastAPI(
     title="TestDesk",

@@ -5,7 +5,6 @@ from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, DateTime, J
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone, timedelta
 import uuid
-from user.models import User
 from sqlalchemy import func
 
 
@@ -36,7 +35,7 @@ class Poll(Base):
     poll_status = Column(ENUM(PollStatus), default=PollStatus.DRAFT)
     poll_url = Column(String, nullable=True)
     user_id = Column(Integer, ForeignKey("user.id"))
-    user = relationship(User, back_populates="polls")
+    user = relationship("User", back_populates="polls")
     question = relationship("Question", back_populates="poll", cascade="all, delete-orphan")
     response = relationship("Response", back_populates="poll", cascade="all, delete-orphan")
 
