@@ -15,6 +15,7 @@ from core.exceptions import TokenExpiredError, CustomInvalidTokenError
 from user.models import UserRole
 from api.utils.logger import PollLogger
 
+
 # Logging
 logger = PollLogger(__name__)
 
@@ -22,11 +23,17 @@ password_reset_jwt_subject = "present"
 
 
 def send_email(email_to: str, subject_template="", html_template="", enviroment={}):
-    """ Базовая функция для отправки писем
+
+    """
+    Базовая функция для отправки писем
+
+
     :param email_to: адрес электронной почты куда отправляется письмо
     :param subject_template: тема письма
     :param html_template: шаблон письма
-    :param enviroment: словарь с переменными для шаблона"""
+    :param enviroment: словарь с переменными для шаблона
+    """
+
     assert config.EMAILS_ENABLED, "no provided configuration for email variables"
     message = emails.Message(
         subject=JinjaTemplate(subject_template),
@@ -34,14 +41,20 @@ def send_email(email_to: str, subject_template="", html_template="", enviroment=
         mail_from=(config.EMAILS_FROM_NAME, config.EMAILS_FROM_EMAIL),
     )
     smtp_options = {"host": config.SMTP_HOST, "port": config.SMTP_PORT}
+
     if config.SMTP_TLS:
         smtp_options["tls"] = True
     if config.SMTP_USER:
         smtp_options["user"] = config.SMTP_USER
     if config.SMTP_PASSWORD:
         smtp_options["password"] = config.SMTP_PASSWORD
-    response = message.send(to=email_to, render=enviroment, smtp=smtp_options)
-    logging.info(f"send email to {email_to} with response {response}")
+    try:
+        response = message.send(to=email_to, render=enviroment, smtp=smtp_options)
+        logging.info(f"send email to "
+                     f"{email_to} with response {response}")
+    except Exception as e:
+        logging.error(f"Failed to send email to {email_to} with error: {e}")
+
 
 
 def send_test_email(email_to: str):
@@ -92,7 +105,9 @@ def send_new_account_email(email_to: str, full_name: str, email: str, link: str,
     :param email: адрес электронной почты пользователя - здесь это как имя пользователя
     :param link: ссылка на фронтенд
     :param token: токен регистрации
-    :return: отправка письма"""
+    :return: отправка письма
+    """
+
     project_name = config.PROJECT_NAME
     #logger.info('Income token: ' + str(token))
     subject = f"{project_name} - Завершите регистрацию для {email}"
@@ -118,6 +133,51 @@ def send_new_account_email(email_to: str, full_name: str, email: str, link: str,
     )
 
 
+# send email about update profile
+def send_update_profile_email(
+        email_to: str,
+        email: str,
+        full_name: str,
+        email_changed: bool,
+        password_changed: bool,
+        both_changed: bool,
+        roles_changed: bool,
+        role: list
+    ):
+    """
+    Отправка письма с уведомлением об обновлении профиля
+
+    :param email_to: адрес электронной почты куда отправляется письмо
+    :param email: адрес электронной почты пользователя - здесь это как имя пользователя
+    :param full_name: полное имя пользователя
+    :return: отправка письма
+    """
+
+
+    project_name = config.PROJECT_NAME
+    subject = f"{project_name} - Профиль обновлен для {email}"
+    with open(Path(config.EMAIL_TEMPLATES_DIR) / "update_profile.html") as f:
+        template_str = f.read()
+
+    send_email(
+        email_to=email_to,
+        subject_template=subject,
+        html_template=template_str,
+        enviroment={
+            "project_name": config.PROJECT_NAME,
+            "email": email_to,
+            "full_name": full_name,
+            "email_changed": email_changed,
+            "password_changed": password_changed,
+            "both_changed": both_changed,
+            "role_changed": role_changed,
+            "role": role
+        },
+    )
+
+
+
+
 # send new account complete registration email
 def send_new_account_complete_registration_email(email_to: str, email: str, full_name: str):
     """
@@ -127,6 +187,7 @@ def send_new_account_complete_registration_email(email_to: str, email: str, full
     :param email: адрес электронной почты пользователя - здесь это как имя пользователя
     :param full_name: полное имя пользователя
     :return: отправка письма"""
+
     project_name = config.PROJECT_NAME
     subject = f"{project_name} - Регистрация завершена для {email}"
     with open(Path(config.EMAIL_TEMPLATES_DIR) / "new_account_complete_registration.html") as f:

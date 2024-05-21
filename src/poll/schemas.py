@@ -13,6 +13,7 @@ class ChoiceBase(CamelModelMixin):
 
 
 class Choice(CamelModelMixin):
+    id: Optional[int] = None
     text: str
     choice_cover: Optional[str] = None
 
@@ -21,11 +22,6 @@ class ChoiceOut(CamelModelMixin):
     id: int
     text: str
     choice_cover: Optional[str] = None
-
-
-
-
-
 
 
 class QuestionType(str, Enum):
@@ -38,9 +34,9 @@ class QuestionType(str, Enum):
 class StatusPoll(str, Enum):
     DRAFT = 'DRAFT'
     PUBLISHED = 'PUBLISHED'
-    CLOSED = 'CLOSED'
+    # CLOSED = 'CLOSED'
     ENDED = 'ENDED'
-    ARCHIVED = 'ARCHIVED'
+    # ARCHIVED = 'ARCHIVED'
 
 
 class QuestionBase(CamelModelMixin):
@@ -54,7 +50,7 @@ class QuestionBase(CamelModelMixin):
 
 
 class Question(QuestionBase):
-
+    id: Optional[int] = None
     choice: Optional[List[Choice]] = []
 
     class Config:
@@ -168,7 +164,6 @@ class CreateSimplePoll(CamelModelMixin):
 
 class PollDetail(PollBase):
     question_count: Optional[int] = None
-
 
 
 class UpdatePoll(CamelModelMixin):
@@ -296,21 +291,14 @@ class PollReportResponse(CamelModelMixin):
     report: List[QuestionReport]
 
 
-class UserSession(CamelModelMixin):
-    token: str = Field(...)
-    fingerprint: Optional[str] = None
-    poll_uuid: str = Field(...)
-    expires_at: Optional[datetime] = None
-    expired: Optional[bool] = False
-    answered: Optional[bool] = False
-    session_status: Optional[str] = None
-
-    # class Config:
-    #     schema_extra = {
-    #         "example": {
-    #             "token": ""
-    #         }
-    #     }
+# class UserSession(CamelModelMixin):
+#     token: str = Field(...)
+#     fingerprint: Optional[str] = None
+#     poll_uuid: str = Field(...)
+#     expires_at: Optional[datetime] = None
+#     expired: Optional[bool] = False
+#     answered: Optional[bool] = False
+#     session_status: Optional[str] = None
 
 
 class UpdateUserSession(CamelModelMixin):
@@ -320,3 +308,37 @@ class UpdateUserSession(CamelModelMixin):
 
 class FingerPrint(CamelModelMixin):
     fingerprint: Optional[str] = None
+
+
+#  Classes for statistics of poll responses
+class Option(CamelModelMixin):
+    id: int
+    text: str
+
+
+class UserResponse(CamelModelMixin):
+    questionId: int
+    questionText: str
+    answerType: QuestionType
+    selectedOptionIds: List[int]
+    answerText: Optional[str] = None
+    user_token: str
+
+
+class QuestionStats(CamelModelMixin):
+    questionId: int
+    answerType: QuestionType
+    questionText: str
+    items: dict
+
+
+class PollStatsResponse(CamelModelMixin):
+
+    responses: List[UserResponse]
+    stats: List[QuestionStats]
+
+
+# # Модель для списка результатов опроса
+# class PollResultsResponse(CamelModelMixin):
+#
+#     results: List[PollStatsResponse]

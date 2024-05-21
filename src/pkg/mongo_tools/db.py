@@ -153,13 +153,29 @@ database = client[MONGO_NAME]
 session_collection = database.get_collection("sessions")
 
 
+def get_mongo_client():
+    client = AsyncIOMotorClient(
+                MONGO_URI,
+                username=MONGO_USER,
+                password=MONGO_PASSWORD,
+            )
+    return client
+
+
+def get_mongo_collection():
+    client = get_mongo_client()
+    db = client[MONGO_NAME]
+    collection = database.get_collection("sessions")
+    return collection
+
+
 def session_helper(session) -> dict:
     return {
         "token": str(session["token"]),
         "fingerprint": str(session["fingerprint"]),
         "poll_uuid": str(session["poll_uuid"]),
         "expires_at": datetime.strptime(session.get("expires_at", ""), "%Y-%m-%dT%H:%M:%S")
-        if session.get("expires_at") else None,
-        "expired": session.get("expired", False),
-        "answered": session.get("answered", False)
+        if session["expires_at"] else None,
+        "expired": (session["expired"], False),
+        "answered": (session.get["answered"], False)
     }

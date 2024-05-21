@@ -29,6 +29,7 @@ celery = {extras = ["redis"], version = "^5.3.6"}
 kombu = {extras = ["redis"], version = "^5.3.5"}
 redis = "^5.0.1"
 flower = "^2.0.1"
+faker = "^25.2.0"
 
 
 [build-system]

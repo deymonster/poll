@@ -1,11 +1,11 @@
 from db.base_class import Base
 from enum import Enum
 from sqlalchemy.dialects.postgresql import ENUM, UUID
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, DateTime, JSON, event
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, DateTime, JSON, event, DateTime
 from sqlalchemy.orm import relationship
 from datetime import datetime, timezone, timedelta
 import uuid
-from user.models import User
+from sqlalchemy import func
 
 
 class TypeQuestion(str, Enum):
@@ -18,7 +18,7 @@ class TypeQuestion(str, Enum):
 class PollStatus(str, Enum):
     DRAFT = "DRAFT"
     PUBLISHED = "PUBLISHED"
-    CLOSED = "CLOSED"
+    # CLOSED = "CLOSED"
     ENDED = "ENDED"
     ARCHIVED = "ARCHIVED"
 
@@ -28,28 +28,26 @@ class Poll(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     uuid = Column(UUID(as_uuid=True), unique=True, default=uuid.uuid4)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=func.now(), comment="Дата создания")
     title = Column(String, index=True)
     description = Column(String, index=True)
     poll_cover = Column(String, nullable=True)
     poll_status = Column(ENUM(PollStatus), default=PollStatus.DRAFT)
     poll_url = Column(String, nullable=True)
     user_id = Column(Integer, ForeignKey("user.id"))
-    user = relationship(User, back_populates="polls")
-    question = relationship("Question", back_populates="poll")
-    response = relationship("Response", back_populates="poll")
+    user = relationship("User", back_populates="polls")
+    question = relationship("Question", back_populates="poll", cascade="all, delete-orphan")
+    response = relationship("Response", back_populates="poll", cascade="all, delete-orphan")
 
     active_from = Column(DateTime, nullable=True)
     active_duration = Column(Integer, nullable=True)
     max_participants = Column(Integer, nullable=True)
-
 
     def is_published(self):
         if self.poll_status == PollStatus.PUBLISHED:
             return True
         else:
             return None
-
 
     def is_ended(self):
         if self.poll_status == PollStatus.ENDED:
@@ -77,8 +75,8 @@ class Question(Base):
     poll_id = Column(Integer, ForeignKey("poll.id"))
     order = Column(Integer, default=10, index=True)
     poll = relationship("Poll", back_populates="question")
-    choice = relationship("Choice", back_populates="question")
-    response = relationship("Response", back_populates="question")
+    choice = relationship("Choice", back_populates="question", cascade="all, delete-orphan")
+    response = relationship("Response", back_populates="question", cascade="all, delete-orphan")
 
 
 # Model choice
@@ -89,7 +87,7 @@ class Choice(Base):
     text = Column(String, index=True)
     choice_cover = Column(String, nullable=True)
     text_fields_count = Column(Integer, nullable=True)
-    question_id = Column(Integer, ForeignKey("question.id"))
+    question_id = Column(Integer, ForeignKey("question.id", ondelete="CASCADE"))
     question = relationship("Question", back_populates="choice")
 
 
@@ -99,13 +97,15 @@ class Response(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     created_at = Column(DateTime, default=datetime.utcnow)
-    poll_id = Column(Integer, ForeignKey("poll.id"))
+    poll_id = Column(Integer, ForeignKey("poll.id", ondelete="CASCADE"))
     poll = relationship("Poll", back_populates="response")
-    question_id = Column(Integer, ForeignKey("question.id"))
+    question_id = Column(Integer, ForeignKey("question.id", ondelete="CASCADE"))
     question = relationship("Question", back_populates="response")
 
     answer_text = Column(JSON, nullable=True)
     answer_choice = Column(JSON, nullable=True)
+
+    user_token = Column(String, nullable=False, index=True)
 
 
 

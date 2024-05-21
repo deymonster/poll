@@ -47,7 +47,9 @@ class Message(CamelModelMixin):
 
 
 class AvatarUpload(Message):
-    path_to_avatar:  str
+    path_to_avatar:  Optional[str] = None
+
+
 
 
 class TokenVerificationResponse(CamelModelMixin):

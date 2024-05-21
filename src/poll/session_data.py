@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 from uuid import UUID
 
+
 @dataclass
 class SessionData:
     """
@@ -26,11 +27,12 @@ class SessionData:
 
     """
     token: str
-    fingerprint: str
     poll_uuid: UUID
+    fingerprint: str = field(default='')
     expires_at: Optional[datetime] = field(default=None)
     expired: bool = field(default=False)
     answered: bool = field(default=False)
+    session_status: str = field(default='')
 
     def __post_init__(self):
         self.poll_uuid = str(self.poll_uuid)
