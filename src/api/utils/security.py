@@ -16,7 +16,7 @@ from starlette.status import (
     HTTP_404_NOT_FOUND,
     HTTP_500_INTERNAL_SERVER_ERROR)
 
-from poll.schemas import UserSession
+from poll.session_data import SessionData
 # from pkg.mongo_tools.db import DatabaseManager
 from user.schemas import UserCreate
 from user.service import crud_user
@@ -116,42 +116,41 @@ def get_current_user(token: str = Depends(security), db: Session = Depends(get_d
 
 async def get_poll_session(token: Optional[str] = Header(None),
                            fingerprint: Optional[str] = Header(None),
-                           uuid: UUID = None,
                            db_mongo: AsyncIOMotorCollection = Depends(get_mongo_db)
-                           ) -> Optional[UserSession]:
-    """Получение информации о сессии пользователя который проходит опрос"""
-
+                           ):
+    """
+    Получение информации о сессии пользователя который проходит опрос
+    """
     if token:
         try:
             payload = jwt.decode(token, config.SECRET_KEY, algorithm=ALGORITHM)
             token_data = AnonymTokenPayload(**payload)
             token_uuid = UUID(token_data.poll_uuid)
-
         except PyJWTError:
             raise HTTPException(
-                status_code=HTTP_401_UNAUTHORIZED, detail="Could not validate credentials - no anonymous token"
+                status_code=HTTP_401_UNAUTHORIZED, detail="Could not validate credentials - no valid anonymous token"
             )
-
-        # Проверяем uuid из токена и тот который пришел из URL
-        if token_uuid != uuid:
-            return None
 
         # Получение сессии из MongoDB
         mongo_user_session = await db_mongo.find_one({"token": token})
-
         if mongo_user_session:
-
             if fingerprint and mongo_user_session.get("fingerprint") != fingerprint:
                 raise HTTPException(status_code=401, detail="Invalid fingerprint")
             expires_at = mongo_user_session.get("expires_at")
-            if expires_at and expires_at < datetime.utcnow():
-                await db_mongo.delete_one({"token": token})
-                raise HTTPException(status_code=401, detail="Время сессии закончено, сессия удалена!")
-            # if mongo_user_session.get("poll_uuid") != uuid:
-            #     raise HTTPException(status_code=401, detail="Invalid poll_uuid in session")
-            if mongo_user_session.get("answered"):
-                raise HTTPException(status_code=401, detail="Вы уже прошли данный опрос!")
+            # # проверка на просроченность
+            # if expires_at and expires_at < datetime.utcnow():
+            #     await db_mongo.update_one({"token": token}, {"$set": {"expired": True}})
+            # # проверка на наличия ответа на опроса
+            # # if mongo_user_session.get("answered"):
+            # #     raise HTTPException(status_code=403, detail="Вы уже прошли данный опрос!")
             return mongo_user_session
+        else:
+            user_session = SessionData(
+                token=token,
+                poll_uuid=str(token_uuid),
+                session_status="notfound"
+            )
+            return user_session.to_dict()
     return None
 
 

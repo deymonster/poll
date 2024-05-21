@@ -1,5 +1,7 @@
 from base import schemas
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func, extract
+from collections import Counter
 from company import schemas
 from company import models as company_models
 from fastapi import HTTPException
@@ -19,7 +21,35 @@ def get_all_companies(db: Session):
     :param db:
     :return: all companies
     """
-    return db.query(models.Company).all()
+    return db.query(company_models.Company).all()
+
+
+def get_monthly_company(db: Session, year: int):
+    """Получение статистики по месяцам компаний
+
+    :param db: Сессия базы данных
+    :param year: Год
+    :return: количество компаний по месяцам
+    """
+    companies = db.query(
+        extract('month', company_models.Company.created_at).label('month'),
+    ).filter(
+        extract('year', company_models.Company.created_at) == year
+    ).all()
+
+    # Подсчитываем количество компаний по месяцам
+    monthly_counts = Counter(month for month, in companies)
+
+    # Инициализируем список нулями для каждого месяца
+    monthly_registrations = [monthly_counts[i] for i in range(1, 13)]
+
+    # Общее количество компаний за год - это просто длина списка companies
+    total_count = len(companies)
+
+    return {
+        "monthly_registrations": monthly_registrations,
+        "total_count": total_count
+    }
 
 
 # create new company
@@ -32,7 +62,7 @@ def create_new_company(db: Session, data: schemas.CompanyCreate):
     :return: new company
     """
     # TODO добавить проверку компании по ИНН если она уже есть то ошибку return
-    new_company = models.Company(**data.model_dump())
+    new_company = company_models.Company(**data.model_dump())
     db.add(new_company)
     db.commit()
     db.refresh(new_company)
@@ -48,7 +78,7 @@ def get_company_by_id(db: Session, company_id: int):
     :param company_id:
     :return: company
     """
-    db_company = db.query(models.Company).filter_by(id=company_id).first()
+    db_company = db.query(company_models.Company).filter_by(id=company_id).first()
     if not db_company:
         raise HTTPException(status_code=404, detail="Company not found")
     return db_company
@@ -60,7 +90,7 @@ def get_company_by_inn(db: Session, inn: str):
     :param inn: INN company
     :return company
     """
-    db_company = db.query(models.Company).filter_by(inn=inn).first()
+    db_company = db.query(company_models.Company).filter_by(inn=inn).first()
     if db_company:
         return db_company
 
@@ -91,7 +121,7 @@ def update_company_status(db: Session, company_id: int, payload_status: schemas.
     :param company_id:  Company ID
     :param payload_status: Status - True or False
     """
-    db_company = db.query(models.Company).filter_by(id=company_id).first()
+    db_company = db.query(company_models.Company).filter_by(id=company_id).first()
     if not db_company:
         raise HTTPException(status_code=404, detail="Company not found")
     db_company.subscription_active = payload_status.company_status

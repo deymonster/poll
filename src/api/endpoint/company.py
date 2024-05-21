@@ -39,7 +39,7 @@ def get_companies(db: Session = Depends(get_db),
     get_current_user_with_roles(current_user, required_roles=[UserRole.SUPERADMIN])
     try:
         companies = service.get_all_companies(db)
-        #logger.info(f"Companies - {companies[0].name}")
+        logger.info(f"Companies - {companies[0].name}")
         return companies
     except Exception as e:
         raise HTTPException(status_code=400, detail="Errors while getting all companies: " + str(e))

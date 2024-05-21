@@ -59,3 +59,12 @@ class CompanyStatusUpdate(CamelModelMixin):
     company_status: bool = False
 
 
+class MonthlyStats(CamelModelMixin):
+    monthly_registrations: List[int]
+    total_count: int
+
+class AllStatistics(CamelModelMixin):
+    company: MonthlyStats
+    poll: MonthlyStats
+    user: MonthlyStats
+

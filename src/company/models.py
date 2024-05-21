@@ -4,6 +4,7 @@ from sqlalchemy.dialects.postgresql import ENUM, UUID
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, DateTime, JSON, Text
 from sqlalchemy.orm import relationship
 from datetime import datetime, timedelta
+from sqlalchemy import func
 
 
 class Company(Base):
@@ -25,6 +26,8 @@ class Company(Base):
     subscription_end = Column(DateTime, nullable=True, comment="Дата окончания подписки")
     subscription_active = Column(Boolean, default=True, comment="Статус подписки")
     invitations = relationship("Invitations", back_populates="company")
+
+    created_at = Column(DateTime, default=func.now(), comment="Дата создания")
 
 
 class Invitations(Base):
