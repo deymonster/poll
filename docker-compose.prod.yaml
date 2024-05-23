@@ -31,7 +31,6 @@ services:
       dockerfile: _configs/Dockerfile
       target: 'production-stage'
     container_name: poll-backend
-    command: bash start.sh
     env_file:
       - .env
     environment:
@@ -54,10 +53,15 @@ services:
       dockerfile: _configs/Dockerfile
       target: 'production-stage'
     container_name: poll-frontend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.poll-frontend.rule=Host(`testdesk.ru`)"
+      - "traefik.http.routers.poll-frontend.entrypoints=https"
+      - "traefik.http.routers.poll-frontend.tls.certresolver=lets-encrypt"
     ports:
       - "80:80"
     depends_on:
-      - poll-app
+      - poll-backend
 
   traefik:
     image: traefik:v2.5
@@ -69,4 +73,9 @@ services:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
       - "./traefik/traefik.toml:/etc/traefik/traefik.toml:ro"
       - "./traefik/certificates:/certificates"
+    labels:
+      - "traefik.enable=true"
+
+    depends_on:
+      - poll-frontend
 
