@@ -58,8 +58,7 @@ services:
       - "traefik.http.routers.poll-frontend.rule=Host(`testdesk.ru`)"
       - "traefik.http.routers.poll-frontend.entrypoints=https"
       - "traefik.http.routers.poll-frontend.tls.certresolver=lets-encrypt"
-    ports:
-      - "80:80"
+
     depends_on:
       - poll-backend
 
@@ -76,6 +75,14 @@ services:
     labels:
       - "traefik.enable=true"
 
+    ports:
+      - "5000:80"
+      - "443:443"
+
     depends_on:
       - poll-frontend
 
+
+volumes:
+  poll-db-data:
+  mongodb_data:

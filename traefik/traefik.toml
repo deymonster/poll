@@ -1,6 +1,6 @@
 [entryPoints]
   [entryPoints.http]
-    address = ":80"
+    address = ":5000"
       [entryPoints.http.http.redirections.entryPoint]
       to = "https"
       scheme = "https"
