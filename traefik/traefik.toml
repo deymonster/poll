@@ -6,7 +6,7 @@
       scheme = "https"
       permanent = true
 
-    [entryPoints.https]
+  [entryPoints.https]
     address = ":443"
     [entryPoints.https.tls]
 
