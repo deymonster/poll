@@ -1,9 +1,9 @@
-FROM            python:3.11-slim
+FROM            python:3.11-slim as build-stage
 
-ENV             PYTHONBUFFERED=1
+ENV             PYTHONUNBUFFERED=1
 ENV             LANGUAGE en_US.UTF-8
-ENV             USER pool_users
-ENV             PROJECTPATH=/home/pool_users/app
+ENV             USER poll_users
+ENV             PROJECTPATH=/home/poll_users/app
 
 RUN             set -x \
                 && apt update -qq \
@@ -33,4 +33,9 @@ RUN             poetry install --no-root
 COPY            ./src/* ${PROJECTPATH}
 
 USER            ${USER}
+
+FROM            tiangolo/uvicorn-gunicorn:python3.11-slim as production-stage
+COPY            --from=build-stage ${PROJECTPATH}/ /home/${USER}/app
+WORKDIR         ${PROJECTPATH}
+
 

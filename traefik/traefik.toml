@@ -1,0 +1,43 @@
+[entryPoints]
+  [entryPoints.http]
+    address = ":80"
+      [entryPoints.http.http.redirections.entryPoint]
+      to = "https"
+      scheme = "https"
+      permanent = true
+
+    [entryPoints.https]
+    address = ":443"
+    [entryPoints.https.tls]
+
+[accessLog]
+
+[api]
+dashboard = false
+
+
+[providers]
+  [providers.docker]
+    exposedByDefault = false
+
+[docker]
+  endpoint = "unix:///var/run/docker.sock"
+  watch = true
+
+[certificatesResolvers.lets-encrypt.acme]
+  email = "deymonster@gmail.com"
+  storage = "/certificates/acme.json"
+  [certificatesResolvers.lets-encrypt.acme.tlsChallenge]
+
+[http.routers]
+  [http.routers.my-router]
+    rule = "Host(`testdesk.ru`)"
+    entryPoints = ["https"]
+    service = "poll-frontend"
+    [http.routers.my-router.tls]
+      certResolver = "lets-encrypt"
+
+[http.services]
+  [http.services.poll-frontend.loadBalancer]
+  [[http.services.poll-frontend.loadBalancer.servers]]
+    url = "http://poll-frontend:80"

@@ -13,9 +13,6 @@ services:
       - .env
     environment:
       PGDATA: /var/lib/postgresql/data/pgdata
-    networks:
-      - poll-network
-
 
   poll-mongo:
     image: mongo
@@ -27,16 +24,13 @@ services:
       - .env
     volumes:
       - mongodb_data:/data/db
-    networks:
-      - poll-network
 
-
-  poll-app:
+  poll-backend:
     build:
       context: .
       dockerfile: _configs/Dockerfile
-      target: 'build-stage'
-    container_name: poll-app
+      target: 'production-stage'
+    container_name: poll-backend
     command: bash start.sh
     env_file:
       - .env
@@ -52,33 +46,27 @@ services:
       - poll-db
       - poll-mongo
     user: "${UID}:${GID}"
-    networks:
-      - poll-network
 
 
   poll-frontend:
     build:
-      context: ../poll_ui_v3/poll_ui_vue3
+      context: ../poll_frontend
       dockerfile: _configs/Dockerfile
-      target: 'develop-stage'
+      target: 'production-stage'
     container_name: poll-frontend
     ports:
-      - "9000:9000"
-    volumes:
-      - "../poll_ui_v3/poll_ui_vue3/:/app"
+      - "80:80"
     depends_on:
       - poll-app
-    networks:
-      - poll-network
 
-
-volumes:
-  poll-db-data:
-  mongodb_data:
-
-
-networks:
-  poll-network:
-    name: poll-network
-    driver: bridge
+  traefik:
+    image: traefik:v2.5
+    container_name: traefik
+    command:
+      - "--api.insecure=true"
+      - "--api.dashboard=false"
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./traefik/traefik.toml:/etc/traefik/traefik.toml:ro"
+      - "./traefik/certificates:/certificates"
 

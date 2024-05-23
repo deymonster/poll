@@ -16,13 +16,13 @@ restart:
 destroy:
 	docker compose -f docker-compose.yaml down -v $(c)
 log:
-	docker compose -f docker-compose.yaml logs --tail=150 -f pool-app
+	docker compose -f docker-compose.yaml logs --tail=150 -f poll-app
 
 shell:
-	docker compose -f docker-compose.yaml exec pool-app /bin/bash
+	docker compose -f docker-compose.yaml exec poll-app /bin/bash
 
 #manage:
-#	docker-compose -f docker-compose.yaml exec pool-app python manage.py $(c)
+#	docker-compose -f docker-compose.yaml exec poll-app python manage.py $(c)
 #makemigrations:
 #	docker-compose -f docker-compose.yaml exec pool-app python manage.py makemigrations
 #migrate:
