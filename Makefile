@@ -6,10 +6,17 @@ help:
 
 build:
 	docker compose -f docker-compose.yaml build $(c)
+build-prod:
+    docker compose -f docker-compose.prod.yaml build $(c)
 run:
 	docker compose -f docker-compose.yaml up -d $(c)
+
+run-prod:
+    docker compose -f docker-compose.prod.yaml up -d $(c)
 stop:
 	docker compose -f docker-compose.yaml stop $(c)
+stop-prod:
+    docker compose -f docker-compose.prod.yaml stop $(c)
 restart:
 	docker compose -f docker-compose.yaml stop $(c)
 	docker compose -f docker-compose.yaml up -d $(c)
@@ -17,6 +24,8 @@ destroy:
 	docker compose -f docker-compose.yaml down -v $(c)
 log:
 	docker compose -f docker-compose.yaml logs --tail=150 -f poll-app
+log-prod:
+    docker compose -f docker-compose.prod.yaml logs --tail=150 -f poll-backend
 
 shell:
 	docker compose -f docker-compose.yaml exec poll-app /bin/bash
