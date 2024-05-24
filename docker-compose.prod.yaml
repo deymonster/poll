@@ -15,7 +15,7 @@ services:
       PGDATA: /var/lib/postgresql/data/pgdata
 
   poll-mongo:
-    image: mongo
+    image: mongo:4.4
     container_name: poll-mongo
     restart: always
     ports:
@@ -56,7 +56,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.poll-frontend.rule=Host(`testdesk.ru`)"
-      - "traefik.http.routers.poll-frontend.entrypoints=https"
+      - "traefik.http.routers.poll-frontend.entrypoints=websecure"
       - "traefik.http.routers.poll-frontend.tls.certresolver=lets-encrypt"
 
     depends_on:

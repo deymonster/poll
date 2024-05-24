@@ -31,12 +31,17 @@ services:
       - poll-network
 
 
-  poll-app:
+  poll-backend:
     build:
       context: .
       dockerfile: _configs/Dockerfile
       target: 'build-stage'
-    container_name: poll-app
+    container_name: poll-backend
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.poll-backend.rule=Host(`poll-backend.localhost`)"
+      - "traefik.http.routers.poll-backend.entrypoints=web"
+      - "traefik.http.services.poll-backend.loadbalancer.server.port=5000"
     command: bash start.sh
     env_file:
       - .env
@@ -44,8 +49,6 @@ services:
       WAIT-HOSTS: "poll-db"
     volumes:
       - ./src:/home/poll_users/app
-    ports:
-      - "5000:5000"
     tty: true
     restart: on-failure
     depends_on:
@@ -62,15 +65,35 @@ services:
       dockerfile: _configs/Dockerfile
       target: 'develop-stage'
     container_name: poll-frontend
-    ports:
-      - "9000:9000"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.poll-frontend.rule=Host(`poll-frontend.localhost`)"
+      - "traefik.http.routers.poll-frontend.entrypoints=web"
+      - "traefik.http.services.poll-frontend.loadbalancer.server.port=9000"
     volumes:
       - "../poll_ui_v3/poll_ui_vue3/:/app"
     depends_on:
-      - poll-app
+      - poll-backend
     networks:
       - poll-network
 
+  traefik:
+    image: traefik:v2.5
+    container_name: traefik
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--configFile=/etc/traefik/traefik.dev.toml"
+    ports:
+      - "80:80" # HTTP
+      - "8080:8080" # Traefik Dashboard
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./traefik/traefik.dev.toml:/etc/traefik/traefik.toml:ro"
+    networks:
+      - poll-network
 
 volumes:
   poll-db-data:
