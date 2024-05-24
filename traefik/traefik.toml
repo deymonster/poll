@@ -1,45 +1,61 @@
+#[entryPoints]
+#  [entryPoints.web]
+#    address = ":6000"
+#      [entryPoints.web.http.redirections.entryPoint]
+#      to = "websecure"
+#      scheme = "https"
+#      permanent = true
+#
+#  [entryPoints.websecure]
+#    address = ":443"
+#    [entryPoints.websecure.http.tls]
+#      certResolver = "lets-encrypt"
+#
+#[accessLog]
+#
+#[api]
+#dashboard = false
+#
+#
+#[providers]
+#  [providers.docker]
+#    exposedByDefault = false
+#
+#[docker]
+#  endpoint = "unix:///var/run/docker.sock"
+#  watch = true
+#
+#[certificatesResolvers.lets-encrypt.acme]
+#  email = "deymonster@gmail.com"
+#  storage = "/certificates/acme.json"
+#  [certificatesResolvers.lets-encrypt.acme.httpChallenge]
+#    entryPoint = "web"
+#
+#[http.routers]
+#  [http.routers.poll-frontend]
+#    rule = "Host(`testdesk.ru`)"
+#    entryPoints = ["https"]
+#    service = "poll-frontend"
+#    [http.routers.poll-frontend.tls]
+#      certResolver = "lets-encrypt"
+#
+#[http.services]
+#  [http.services.poll-frontend.loadBalancer]
+#  [[http.services.poll-frontend.loadBalancer.servers]]
+#    url = "http://poll-frontend:80"
+
+
 [entryPoints]
   [entryPoints.web]
-    address = ":6000"
-      [entryPoints.web.http.redirections.entryPoint]
-      to = "websecure"
-      scheme = "https"
-      permanent = true
-
-  [entryPoints.websecure]
-    address = ":443"
-    [entryPoints.websecure.http.tls]
-      certResolver = "lets-encrypt"
+    address = ":80" # Traefik будет слушать на порту 80 внутри контейнера
 
 [accessLog]
 
 [api]
 dashboard = false
 
-
 [providers]
   [providers.docker]
+    endpoint = "unix:///var/run/docker.sock"
+    watch = true
     exposedByDefault = false
-
-[docker]
-  endpoint = "unix:///var/run/docker.sock"
-  watch = true
-
-[certificatesResolvers.lets-encrypt.acme]
-  email = "deymonster@gmail.com"
-  storage = "/certificates/acme.json"
-  [certificatesResolvers.lets-encrypt.acme.httpChallenge]
-    entryPoint = "web"
-
-[http.routers]
-  [http.routers.poll-frontend]
-    rule = "Host(`testdesk.ru`)"
-    entryPoints = ["https"]
-    service = "poll-frontend"
-    [http.routers.poll-frontend.tls]
-      certResolver = "lets-encrypt"
-
-[http.services]
-  [http.services.poll-frontend.loadBalancer]
-  [[http.services.poll-frontend.loadBalancer.servers]]
-    url = "http://poll-frontend:80"
