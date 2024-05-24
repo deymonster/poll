@@ -1,14 +1,15 @@
 [entryPoints]
-  [entryPoints.http]
+  [entryPoints.web]
     address = ":6000"
-      [entryPoints.http.http.redirections.entryPoint]
-      to = "https"
+      [entryPoints.web.http.redirections.entryPoint]
+      to = "websecure"
       scheme = "https"
       permanent = true
 
-  [entryPoints.https]
+  [entryPoints.websecure]
     address = ":443"
-    [entryPoints.https.tls]
+    [entryPoints.websecure.http.tls]
+      certResolver = "lets-encrypt"
 
 [accessLog]
 
@@ -27,14 +28,15 @@ dashboard = false
 [certificatesResolvers.lets-encrypt.acme]
   email = "deymonster@gmail.com"
   storage = "/certificates/acme.json"
-  [certificatesResolvers.lets-encrypt.acme.tlsChallenge]
+  [certificatesResolvers.lets-encrypt.acme.httpChallenge]
+    entryPoint = "web"
 
 [http.routers]
-  [http.routers.my-router]
+  [http.routers.poll-frontend]
     rule = "Host(`testdesk.ru`)"
     entryPoints = ["https"]
     service = "poll-frontend"
-    [http.routers.my-router.tls]
+    [http.routers.poll-frontend.tls]
       certResolver = "lets-encrypt"
 
 [http.services]
