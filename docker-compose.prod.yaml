@@ -57,7 +57,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.poll-frontend.rule=Host(`testdesk.ru`)"
       - "traefik.http.routers.poll-frontend.entrypoints=web"
-#      - "traefik.http.routers.poll-frontend.tls.certresolver=lets-encrypt"
+
 
     depends_on:
       - poll-backend
@@ -67,7 +67,7 @@ services:
     container_name: traefik
     command:
       - "--api.insecure=true"
-      - "--api.dashboard=false"
+      - "--api.dashboard=true"
       - "--configFile=/etc/traefik/traefik.toml"
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
@@ -75,6 +75,11 @@ services:
       - "./traefik/certificates:/certificates"
     labels:
       - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=Host(`testdesk.ru`)"
+      - "traefik.http.routers.api.service=api@internal"
+      - "traefik.http.routers.api.entrypoints=web"
+      -  "traefik.http.routers.api.middlewares=auth"
+      -  "traefik.http.middlewares.auth.basicauth.users=admin:$apr1$AnyWut1o$.SeYd/4jFHE6M44ptv3r30"
 
     ports:
       - "5000:5000"
