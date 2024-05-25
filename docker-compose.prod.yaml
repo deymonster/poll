@@ -56,7 +56,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.poll-frontend.rule=Host(`testdesk.ru`)"
-#      - "traefik.http.routers.poll-frontend.entrypoints=web"
+      - "traefik.http.routers.poll-frontend.entrypoints=web"
 #      - "traefik.http.routers.poll-frontend.tls.certresolver=lets-encrypt"
 
     depends_on:
