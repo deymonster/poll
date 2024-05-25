@@ -47,7 +47,7 @@
 
 [entryPoints]
   [entryPoints.web]
-    address = ":80" # Traefik будет слушать на порту 80 внутри контейнера
+    address = ":6000" # Traefik будет слушать на порту 80 внутри контейнера
 
 [accessLog]
 

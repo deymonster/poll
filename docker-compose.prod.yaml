@@ -5,8 +5,8 @@ services:
     image: postgres:14-alpine
     container_name: poll-db
     restart: always
-    ports:
-      - "5432:5432"
+#    ports:
+#      - "5432:5432"
     volumes:
       - poll-db-data:/var/lib/postgresql/data/pgdata
     env_file:
@@ -18,8 +18,8 @@ services:
     image: mongo:4.4
     container_name: poll-mongo
     restart: always
-    ports:
-      - "27017:27017"
+#    ports:
+#      - "27017:27017"
     env_file:
       - .env
     volumes:
@@ -37,8 +37,8 @@ services:
       WAIT-HOSTS: "poll-db"
     volumes:
       - ./src:/home/poll_users/app
-    ports:
-      - "5000:5000"
+#    ports:
+#      - "5000:5000"
     tty: true
     restart: on-failure
     depends_on:
@@ -56,8 +56,8 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.poll-frontend.rule=Host(`testdesk.ru`)"
-      - "traefik.http.routers.poll-frontend.entrypoints=websecure"
-      - "traefik.http.routers.poll-frontend.tls.certresolver=lets-encrypt"
+#      - "traefik.http.routers.poll-frontend.entrypoints=web"
+#      - "traefik.http.routers.poll-frontend.tls.certresolver=lets-encrypt"
 
     depends_on:
       - poll-backend
@@ -77,7 +77,7 @@ services:
       - "traefik.enable=true"
 
     ports:
-      - "6000:80"
+      - "6000:6000"
 #      - "443:443"
 
     depends_on:
