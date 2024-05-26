@@ -41,6 +41,11 @@ services:
 #      - "5000:5000"
     tty: true
     restart: on-failure
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.poll-backend.rule=Host(`testdesk.ru`) && PathPrefix(/api)"
+      - "traefik.http.routers.poll-backend.entrypoints=web"
+      - "traefik.http.services.poll-backend.loadbalancer.server.port=80"
     depends_on:
       - poll-db
       - poll-mongo
