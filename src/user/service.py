@@ -466,6 +466,4 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
         return file_name
 
 
-
-
 crud_user = CRUDUser(User)
