@@ -58,8 +58,8 @@ RUN             mkdir -p /app/logs \
                 && chown -R ${UID}:${GID} /app/logs \
                 && chmod 664 /app/logs/all_logs.log \
                 && chown -R ${UID}:${GID} /app/media \
-                && find /app/media -type d -exec chmod 775 {} ; \
-                && find /app/media -type f -exec chmod 664 {} ; \
+                && find /app/media -type d -exec chmod 775 {} \; \
+                && find /app/media -type f -exec chmod 664 {} \; \
                 && chmod +x /app/prestart.sh
 USER            ${UID}:${GID}
 
