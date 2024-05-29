@@ -119,3 +119,7 @@ services:
 volumes:
   poll-db-data:
   mongodb_data:
+
+networks:
+  poll-network:
+    external: true
