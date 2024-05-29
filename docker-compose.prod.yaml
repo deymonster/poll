@@ -80,7 +80,7 @@ services:
       - ./src/media:/usr/share/nginx/html/media
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.nginx-media.rule=Host(`testdesk.ru`)`) && PathPrefix(`/media`)"
+      - "traefik.http.routers.nginx-media.rule=Host(`testdesk.ru`) && PathPrefix(`/media`)"
       - "traefik.http.routers.nginx-media.entrypoints=web"
       - "traefik.http.routers.nginx-media.priority=10"
       - "traefik.http.services.nginx-media.loadbalancer.server.port=808"
