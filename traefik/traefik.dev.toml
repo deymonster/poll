@@ -8,8 +8,12 @@
   insecure = true
   dashboard = true
 
+
+
 [providers]
   [providers.docker]
     endpoint = "unix:///var/run/docker.sock"
     watch = true
     exposedByDefault = false
+
+

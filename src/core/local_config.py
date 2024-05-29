@@ -21,6 +21,8 @@ class Settings(BaseSettings):
     MEDIA_ROOT: str = os.path.join(BASEDIR, 'media')
     VUE_APP_BASE_URL: str
 
+    SERVER_HOST: str
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
@@ -29,7 +31,8 @@ class Settings(BaseSettings):
 settings = Settings()
 
 PROJECT_NAME = "TestDesk"
-SERVER_HOST = 'http://127.0.0.1:5000'
+#SERVER_HOST = 'http://127.0.0.1:5000'
+
 
 
 

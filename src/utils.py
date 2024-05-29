@@ -14,6 +14,7 @@ from core import config
 from core.exceptions import TokenExpiredError, CustomInvalidTokenError
 from user.models import UserRole
 from api.utils.logger import PollLogger
+from core.local_config import settings
 
 
 # Logging
@@ -56,7 +57,6 @@ def send_email(email_to: str, subject_template="", html_template="", enviroment=
         logging.error(f"Failed to send email to {email_to} with error: {e}")
 
 
-
 def send_test_email(email_to: str):
     project_name = config.PROJECT_NAME
     subject = f"{project_name} - Test email"
@@ -79,7 +79,7 @@ def send_reset_password_email(email_to: str, email: str, token: str, front_url: 
         use_token = token.decode()
     else:
         use_token = token
-    server_host = config.SERVER_HOST
+    server_host = settings.SERVER_HOST
     link = f"{front_url}/reset-password?token={use_token}"
     send_email(
         email_to=email_to,
@@ -174,8 +174,6 @@ def send_update_profile_email(
             "role": role
         },
     )
-
-
 
 
 # send new account complete registration email

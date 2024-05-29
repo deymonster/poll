@@ -1,12 +1,119 @@
-version: "3.8"
+#version: "3.8"
+#
+#services:
+#  poll-db:
+#    image: postgres:14-alpine
+#    container_name: poll-db
+#    restart: always
+#    ports:
+#      - "5432:5432"
+#    volumes:
+#      - poll-db-data:/var/lib/postgresql/data/pgdata
+#    env_file:
+#      - .env
+#    environment:
+#      PGDATA: /var/lib/postgresql/data/pgdata
+#    networks:
+#      - poll-network
+#
+#
+#  poll-mongo:
+#    image: mongo
+#    container_name: poll-mongo
+#    restart: always
+#    ports:
+#      - "27017:27017"
+#    env_file:
+#      - .env
+#    volumes:
+#      - mongodb_data:/data/db
+#    networks:
+#      - poll-network
+#
+#
+#  poll-backend:
+#    build:
+#      context: .
+#      dockerfile: _configs/Dockerfile
+#      target: 'build-stage'
+#    container_name: poll-backend
+#    labels:
+#      - "traefik.enable=true"
+#      - "traefik.http.routers.poll-backend.rule=Host(`poll-backend.localhost`) && PathPrefix(`/api`)"
+#      - "traefik.http.routers.poll-backend.entrypoints=web"
+#      - "traefik.http.services.poll-backend.loadbalancer.server.port=5000"
+#    command: bash start.sh
+#    env_file:
+#      - .env
+#    environment:
+#      WAIT-HOSTS: "poll-db"
+#    volumes:
+#      - ./src:/home/poll_users/app
+#    tty: true
+#    restart: on-failure
+#    depends_on:
+#      - poll-db
+#      - poll-mongo
+#    user: "${UID}:${GID}"
+#    networks:
+#      - poll-network
+#
+#
+#  poll-frontend:
+#    build:
+#      context: ../poll_ui_v3/poll_ui_vue3
+#      dockerfile: _configs/Dockerfile
+#      target: 'develop-stage'
+#    container_name: poll-frontend
+#    labels:
+#      - "traefik.enable=true"
+#      - "traefik.http.routers.poll-frontend.rule=Host(`poll-frontend.localhost`)"
+#      - "traefik.http.routers.poll-frontend.entrypoints=web"
+#      - "traefik.http.services.poll-frontend.loadbalancer.server.port=9000"
+#    volumes:
+#      - "../poll_ui_v3/poll_ui_vue3/:/app"
+#    depends_on:
+#      - poll-backend
+#    networks:
+#      - poll-network
+#
+#  traefik:
+#    image: traefik:v2.5
+#    container_name: traefik
+#    command:
+#      - "--api.insecure=true"
+#      - "--providers.docker"
+#      - "--providers.docker.exposedbydefault=false"
+#      - "--entrypoints.web.address=:80"
+#      - "--configFile=/etc/traefik/traefik.dev.toml"
+#    ports:
+#      - "80:80" # HTTP
+#      - "8080:8080" # Traefik Dashboard
+#    volumes:
+#      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+#      - "./traefik/traefik.dev.toml:/etc/traefik/traefik.toml:ro"
+#    networks:
+#      - poll-network
+#
+#volumes:
+#  poll-db-data:
+#  mongodb_data:
+#
+#
+#networks:
+#  poll-network:
+#    name: poll-network
+#    driver: bridge
+#
+
+
+version : '3.8'
 
 services:
   poll-db:
     image: postgres:14-alpine
     container_name: poll-db
     restart: always
-    ports:
-      - "5432:5432"
     volumes:
       - poll-db-data:/var/lib/postgresql/data/pgdata
     env_file:
@@ -16,13 +123,10 @@ services:
     networks:
       - poll-network
 
-
   poll-mongo:
-    image: mongo
+    image: mongo:4.4
     container_name: poll-mongo
     restart: always
-    ports:
-      - "27017:27017"
     env_file:
       - .env
     volumes:
@@ -30,78 +134,98 @@ services:
     networks:
       - poll-network
 
-
   poll-backend:
     build:
       context: .
       dockerfile: _configs/Dockerfile
-      target: 'build-stage'
+      target: 'production-stage'
+      args:
+        UID: ${UID}
+        GID: ${GID}
     container_name: poll-backend
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.poll-backend.rule=Host(`poll-backend.localhost`)"
-      - "traefik.http.routers.poll-backend.entrypoints=web"
-      - "traefik.http.services.poll-backend.loadbalancer.server.port=5000"
-    command: bash start.sh
     env_file:
       - .env
     environment:
       WAIT-HOSTS: "poll-db"
     volumes:
-      - ./src:/home/poll_users/app
+      - ./src:/app
+      - ./src/media:/app/media
     tty: true
     restart: on-failure
+    networks:
+      - poll-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.poll-backend.rule=Host(`poll-frontend.localhost`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.poll-backend.entrypoints=web"
+      - "traefik.http.services.poll-backend.loadbalancer.server.port=80"
+
     depends_on:
       - poll-db
       - poll-mongo
     user: "${UID}:${GID}"
-    networks:
-      - poll-network
 
 
   poll-frontend:
     build:
       context: ../poll_ui_v3/poll_ui_vue3
       dockerfile: _configs/Dockerfile
-      target: 'develop-stage'
+      target: 'production-stage'
     container_name: poll-frontend
+    networks:
+      - poll-network
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.poll-frontend.rule=Host(`poll-frontend.localhost`)"
       - "traefik.http.routers.poll-frontend.entrypoints=web"
-      - "traefik.http.services.poll-frontend.loadbalancer.server.port=9000"
+      - "traefik.http.services.poll-frontend.loadbalancer.server.port=80"
+      - "traefik.http.routers.poll-frontend.middlewares=traefik-compress"
+
+  nginx:
+    image: nginx:latest
+    container_name:  "nginx"
     volumes:
-      - "../poll_ui_v3/poll_ui_vue3/:/app"
-    depends_on:
-      - poll-backend
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./src/media:/usr/share/nginx/html/media
     networks:
       - poll-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.nginx-media.rule=Host(`poll-frontend.localhost`) && PathPrefix(`/media`)"
+      - "traefik.http.routers.nginx-media.entrypoints=web"
+      - "traefik.http.routers.nginx-media.priority=10"
+      - "traefik.http.services.nginx-media.loadbalancer.server.port=80"
 
   traefik:
-    image: traefik:v2.5
-    container_name: traefik
+    image: traefik:v2.11.3
+    container_name: "traefik"
     command:
       - "--api.insecure=true"
-      - "--providers.docker"
+      - "--providers.docker=true"
       - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:80"
-      - "--configFile=/etc/traefik/traefik.dev.toml"
+      - "--entrypoints.traefik.address=:8080"
+      - "--accesslog=true"
+      - "--log.level=INFO"
+    labels:
+      - "traefik.http.middlewares.traefik-compress.compress=true"
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.rule=Host(`traefik.localhost`)"
+      - "traefik.http.routers.traefik.entrypoints=traefik"
+      - "traefik.http.routers.traefik.service=api@internal"
+      - "traefik.http.routers.traefik.middlewares=traefik-compress"
     ports:
       - "80:80" # HTTP
-      - "8080:8080" # Traefik Dashboard
-    volumes:
-      - "/var/run/docker.sock:/var/run/docker.sock:ro"
-      - "./traefik/traefik.dev.toml:/etc/traefik/traefik.toml:ro"
+      -  "8080:8080" # Traefik Dashboad
     networks:
       - poll-network
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+
+networks:
+  poll-network:
+    external: true
 
 volumes:
   poll-db-data:
   mongodb_data:
-
-
-networks:
-  poll-network:
-    name: poll-network
-    driver: bridge
-

@@ -19,10 +19,10 @@ restart:
 destroy:
 	docker compose -f docker-compose.yaml down -v $(c)
 log:
-	docker compose -f docker-compose.yaml logs --tail=150 -f poll-app
+	docker compose -f docker-compose.yaml logs --tail=150 -f poll-backend
 
 shell:
-	docker compose -f docker-compose.yaml exec poll-app /bin/bash
+	docker compose -f docker-compose.yaml exec poll-backend /bin/bash
 
 #manage:
 #	docker-compose -f docker-compose.yaml exec poll-app python manage.py $(c)

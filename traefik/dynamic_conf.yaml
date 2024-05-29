@@ -1,0 +1,12 @@
+http:
+  routers:
+    poll-backend:
+      rule: "Host(`poll-frontend.localhost`) && PathPrefix(`/api`)"
+      service: poll-backend
+      entryPoints:
+        - web
+  services:
+    poll-backend:
+      loadBalancer:
+        servers:
+          - url: "http://poll-backend:80"

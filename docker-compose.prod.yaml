@@ -14,6 +14,7 @@ services:
     environment:
       PGDATA: /var/lib/postgresql/data/pgdata
 
+
   poll-mongo:
     image: mongo:4.4
     container_name: poll-mongo
@@ -30,6 +31,9 @@ services:
       context: .
       dockerfile: _configs/Dockerfile
       target: 'production-stage'
+      args:
+        UID: ${UID}
+        GID: ${GID}
     container_name: poll-backend
     env_file:
       - .env
@@ -37,8 +41,7 @@ services:
       WAIT-HOSTS: "poll-db"
     volumes:
       - ./src:/home/poll_users/app
-#    ports:
-#      - "5000:5000"
+
     tty: true
     restart: on-failure
     labels:
@@ -62,32 +65,51 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.poll-frontend.rule=Host(`testdesk.ru`)"
       - "traefik.http.routers.poll-frontend.entrypoints=web"
+      - "traefik.http.services.poll-frontend.loadbalancer.server.port=80"
+      - "traefik.http.routers.poll-frontend.middlewares=traefik-compress"
 
 
     depends_on:
       - poll-backend
 
+  nginx:
+    image: nginx:latest
+    container_name:  "nginx"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./src/media:/usr/share/nginx/html/media
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.nginx-media.rule=Host(`testdesk.ru`)`) && PathPrefix(`/media`)"
+      - "traefik.http.routers.nginx-media.entrypoints=web"
+      - "traefik.http.routers.nginx-media.priority=10"
+      - "traefik.http.services.nginx-media.loadbalancer.server.port=808"
+
   traefik:
-    image: traefik:v2.5
+    image: traefik:v2.11.3
     container_name: traefik
     command:
       - "--api.insecure=true"
       - "--api.dashboard=true"
-      - "--configFile=/etc/traefik/traefik.toml"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.traefik.address=:8080"
+      - "--accesslog=true"
+      - "--log.level=INFO"
     volumes:
       - "/var/run/docker.sock:/var/run/docker.sock:ro"
-      - "./traefik/traefik.toml:/etc/traefik/traefik.toml:ro"
-      - "./traefik/certificates:/certificates"
     labels:
+      - "traefik.http.middlewares.traefik-compress.compress=true"
       - "traefik.enable=true"
-      - "traefik.http.routers.api.rule=Host(`testdesk.ru`)"
+      - "traefik.http.routers.api.rule=Host(`traefik.testdesk.ru`)"
       - "traefik.http.routers.api.service=api@internal"
       - "traefik.http.routers.api.entrypoints=web"
       -  "traefik.http.routers.api.middlewares=auth"
       -  "traefik.http.middlewares.auth.basicauth.users=admin:$apr1$AnyWut1o$.SeYd/4jFHE6M44ptv3r30"
 
     ports:
-      - "5000:5000"
+      - "5000:5000" # HTTP
+      - "8080:6000"  # Dashboard
 #      - "443:443"
 
     depends_on:

@@ -43,7 +43,7 @@ def get_statistics(db: Session = Depends(get_db),
     except Exception as e:
         raise HTTPException(status_code=400, detail="Errors while getting statistics: " + str(e))
     return {
-        "company" : company_statistics,
-        "poll" : poll_statistics,
-        "user" : user_statistics
+        "company": company_statistics,
+        "poll": poll_statistics,
+        "user": user_statistics
     }

@@ -38,7 +38,7 @@ SQLALCHEMY_DATABASE_URI = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}/{DB_N
 
 
 PROJECT_NAME = "TestDesk"
-SERVER_HOST = "http://127.0.0.1:5000"
+# SERVER_HOST = "http://127.0.0.1:5000"
 
 # Email
 SMTP_TLS = True

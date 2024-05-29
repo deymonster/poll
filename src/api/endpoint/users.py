@@ -1,6 +1,6 @@
 from typing import List, Optional
 from urllib.parse import urlparse
-from core.local_config import SERVER_HOST
+from core.local_config import settings
 
 from fastapi import APIRouter, Depends, Body, HTTPException, UploadFile, File
 from fastapi.encoders import jsonable_encoder
@@ -272,7 +272,6 @@ def update_user(
     }
     """
 
-
     # restrict access for superadmin and admin
     get_current_user_with_roles(current_user, required_roles=[UserRole.SUPERADMIN, UserRole.ADMIN])
 
@@ -289,6 +288,7 @@ def update_user(
         return JSONResponse(status_code=201, content={"message": "User updated successfully"})
     except HTTPException as e:
         return JSONResponse(status_code=e.status_code, content={"message": e.detail})
+
 
 @router.put("/profile", response_model=User)
 def update_user_profile(
@@ -321,7 +321,6 @@ def update_user_profile(
         return JSONResponse(status_code=201, content={"message": "User Profile updated successfully"})
     except HTTPException as e:
         return JSONResponse(status_code=e.status_code, content={"message": e.detail})
-
 
 
 @router.get("/me", response_model=User)
@@ -414,7 +413,7 @@ def upload_avatar(user_id: int,
                                                       current_user=current_user)
         return {
             "message": "Avatar uploaded successfully",
-            "path_to_avatar": f"{SERVER_HOST}/media/{user_id}/{str(file_name)}"}
+            "path_to_avatar": f"{settings.SERVER_HOST}/media/{user_id}/{str(file_name)}"}
     except HTTPException as e:
         return JSONResponse(
             status_code=e.status_code,
