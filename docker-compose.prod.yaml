@@ -68,7 +68,6 @@ services:
       - "traefik.http.services.poll-frontend.loadbalancer.server.port=80"
       - "traefik.http.routers.poll-frontend.middlewares=traefik-compress"
 
-
     depends_on:
       - poll-backend
 
