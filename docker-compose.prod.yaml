@@ -86,7 +86,7 @@ services:
       - "traefik.http.routers.nginx-media.middlewares=strip-media-prefix"
 
   traefik:
-    image: traefik:v2.11.3
+    image: traefik:v3.0
     container_name: traefik
     command:
       - "--api.insecure=true"
