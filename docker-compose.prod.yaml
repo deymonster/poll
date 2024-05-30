@@ -83,6 +83,7 @@ services:
       - "traefik.http.routers.nginx-media.entrypoints=web"
       - "traefik.http.routers.nginx-media.priority=10"
       - "traefik.http.services.nginx-media.loadbalancer.server.port=80"
+      - "traefik.http.routers.nginx-media.middlewares=strip-media-prefix"
 
   traefik:
     image: traefik:v2.11.3
@@ -102,7 +103,8 @@ services:
       - "traefik.http.routers.api.rule=Host(`dashboard.testdesk.ru`)"
       - "traefik.http.routers.api.service=api@internal"
       - "traefik.http.routers.api.entrypoints=web"
-      -  "traefik.http.routers.api.middlewares=auth"
+      - "traefik.http.routers.api.middlewares=auth"
+      - "traefik.http.middlewares.strip-media-prefix.stripprefix.prefixes=/media"
       -  "traefik.http.middlewares.auth.basicauth.users=admin:$$2y$$05$$FomMQjKCqut/9fZlGRWpz.AvZfbBWdfi3DO3DBcDto8qtLugeyWpy"
 
     ports:
