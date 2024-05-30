@@ -93,7 +93,6 @@ services:
       - "--api.dashboard=true"
       - "--providers.docker.exposedbydefault=false"
       - "--entrypoints.web.address=:80"
-      - "--entrypoints.traefik.address=:6000"
       - "--accesslog=true"
       - "--log.level=INFO"
     volumes:
@@ -101,15 +100,15 @@ services:
     labels:
       - "traefik.http.middlewares.traefik-compress.compress=true"
       - "traefik.enable=true"
-      - "traefik.http.routers.api.rule=Host(`traefik.testdesk.ru`)"
+      - "traefik.http.routers.api.rule=Host(`dashboard.testdesk.ru`)"
       - "traefik.http.routers.api.service=api@internal"
       - "traefik.http.routers.api.entrypoints=web"
       -  "traefik.http.routers.api.middlewares=auth"
-      -  "traefik.http.middlewares.auth.basicauth.users=admin:$apr1$AnyWut1o$.SeYd/4jFHE6M44ptv3r30"
+      -  "traefik.http.middlewares.auth.basicauth.users=admin:$$2y$$05$$FomMQjKCqut/9fZlGRWpz.AvZfbBWdfi3DO3DBcDto8qtLugeyWpy"
 
     ports:
       - "80:80" # HTTP
-      - "6000:8080"  # Dashboard
+#      - "80:8080"  # Dashboard
 #      - "443:443"
 
     depends_on:

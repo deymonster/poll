@@ -216,7 +216,7 @@ services:
       - "traefik.http.routers.traefik.middlewares=traefik-compress"
     ports:
       - "80:80" # HTTP
-      -  "8080:8080" # Traefik Dashboad
+      - "8080:8080" # Traefik Dashboad
     networks:
       - poll-network
     volumes:
