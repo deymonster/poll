@@ -138,7 +138,7 @@ services:
     build:
       context: .
       dockerfile: _configs/Dockerfile
-      target: 'production-stage'
+      target: 'build-stage'
       args:
         UID: ${UID}
         GID: ${GID}

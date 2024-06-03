@@ -273,7 +273,7 @@ def update_user(
     """
 
     # restrict access for superadmin and admin
-    get_current_user_with_roles(current_user, required_roles=[UserRole.SUPERADMIN, UserRole.ADMIN])
+    # get_current_user_with_roles(current_user, required_roles=[UserRole.SUPERADMIN, UserRole.ADMIN])
 
     user_to_update = crud_user.get_or_404(db, user_id=user_id, current_user=current_user)
 
@@ -315,6 +315,7 @@ def update_user_profile(
         crud_user.profile_update(
             db_session=db,
             user_id=current_user.id,
+            current_user=current_user,
             update_data=user_in,
             background_tasks=background_tasks,
         )

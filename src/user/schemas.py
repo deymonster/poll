@@ -60,6 +60,7 @@ class UserUpdate(UserBase):
     new_password: Optional[str] = None
     company_id: Optional[int] = None
 
+
 class UpdateUserProfile(CamelModelMixin):
     """
     Update user profile model schema

@@ -221,7 +221,6 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
 
         """
 
-
         # User Update His Own Profile
         if not db_obj:
             db_obj = current_user
@@ -248,6 +247,28 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
                 raise HTTPException(status_code=400, detail="incorrect password")
             update_data.hashed_password = get_password_hash(update_data.new_password)
 
+        match True:
+            case _ if UserRole.SUPERADMIN in current_user.roles:
+                updated_user = super().update(db_session, db_obj=db_obj, obj_in=update_data)
+            case _ if UserRole.ADMIN in current_user.roles:
+                if current_user.company_id != db_obj.company_id:
+                    raise HTTPException(
+                        status_code=403, detail="The user from another company"
+                    )
+                update_data.roles = [UserRole.USER]
+                updated_user = super().update(db_session, db_obj=db_obj, obj_in=update_data)
+            case _ if UserRole.USER in current_user.roles:
+                if current_user.id != db_obj.id:
+                    raise HTTPException(
+                        status_code=403, detail="The user can't update another user"
+                    )
+                update_data.roles = [UserRole.USER]
+                # update_data.email = current_user.email
+                updated_user = super().update(db_session, db_obj=db_obj, obj_in=update_data)
+
+            case _:
+                raise HTTPException(status_code=403, detail="Unknown user role")
+
         background_tasks.add_task(
             send_update_profile_email,
             email_to=email_to,
@@ -259,27 +280,7 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
             roles_changed=roles_changed,
             role=role
         )
-        match True:
-            case _ if UserRole.SUPERADMIN in current_user.roles:
-                return super().update(db_session, db_obj=db_obj, obj_in=update_data)
-            case _ if UserRole.ADMIN in current_user.roles:
-                if current_user.company_id != db_obj.company_id:
-                    raise HTTPException(
-                        status_code=403, detail="The user from another company"
-                    )
-                update_data.roles = [UserRole.USER]
-                return super().update(db_session, db_obj=db_obj, obj_in=update_data)
-            case _ if UserRole.USER in current_user.roles:
-                if current_user.id != db_obj.id:
-                    raise HTTPException(
-                        status_code=403, detail="The user can't update another user"
-                    )
-                update_data.roles = [UserRole.USER]
-                # update_data.email = current_user.email
-                return super().update(db_session, db_obj=db_obj, obj_in=update_data)
-
-            case _:
-                raise HTTPException(status_code=403, detail="Unknown user role")
+        return updated_user
 
     # update user his own profile
     def profile_update(
@@ -317,8 +318,8 @@ class CRUDUser(CRUDBase[User, UserCreate, UserUpdate]):
             current_user.email = update_data.email
         if update_data.avatar:
             current_user.avatar = update_data.avatar
-        db.commit()
-        db.refresh(current_user)
+        db_session.commit()
+        db_session.refresh(current_user)
         return current_user
 
 
